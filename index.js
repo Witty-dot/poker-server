@@ -3,14 +3,13 @@ const http = require('http');
 const cors = require('cors');
 const { Server } = require('socket.io');
 const { createDeck, dealCards } = require('./poker');
-
+const path = require('path');
 const app = express();
 app.use(cors());
-app.use(express.json());
-
-// Простой ответ на / — чтобы проверить, что сервер жив
+express.json());
+// Отдаём фронтенд
 app.get('/', (req, res) => {
-  res.send('Poker Server demo is running');
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 const server = http.createServer(app);
