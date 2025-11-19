@@ -4,7 +4,6 @@
   <meta charset="utf-8" />
   <title>Poker Demo Table</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Socket.IO с CDN -->
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"
           integrity="sha384-W4soF8b2W2TJFpV4gw3AaxkLi3oReSMqYyvyimKB9Y5AuC21KfvihQ6yKt8I4dEt"
           crossorigin="anonymous"></script>
@@ -160,14 +159,11 @@
     const yourStackSpan = document.getElementById('yourStack');
     const playersList = document.getElementById('playersList');
 
-    // Подключаемся к тому же хосту, откуда открыт index.html
-    const socket = io(); // Render сам разрулит URL
-
-    let myId = null;
+    const socket = io(); // тот же хост, что и страница
+    console.log('Socket.io init');
 
     socket.on('connect', () => {
-      myId = socket.id;
-      console.log('Connected, id=', myId);
+      console.log('Connected, id=', socket.id);
     });
 
     socket.on('disconnect', () => {
@@ -180,6 +176,7 @@
     });
 
     socket.on('gameState', (state) => {
+      console.log('gameState:', state);
       renderState(state);
     });
 
@@ -192,6 +189,7 @@
     joinBtn.addEventListener('click', () => {
       const name = nameInput.value.trim() || 'Player';
       errorBox.textContent = '';
+      console.log('joinTable click');
       socket.emit('joinTable', { playerName: name });
       joinBtn.disabled = true;
       leaveBtn.disabled = false;
@@ -201,6 +199,7 @@
     });
 
     leaveBtn.addEventListener('click', () => {
+      console.log('leave click');
       socket.disconnect();
       errorBox.textContent = '';
       joinBtn.disabled = false;
@@ -211,16 +210,19 @@
     });
 
     startBtn.addEventListener('click', () => {
+      console.log('startHand click');
       errorBox.textContent = '';
       socket.emit('startHand');
     });
 
     nextBtn.addEventListener('click', () => {
+      console.log('nextStage click');
       errorBox.textContent = '';
       socket.emit('nextStage');
     });
 
     betBtn.addEventListener('click', () => {
+      console.log('bet click');
       errorBox.textContent = '';
       socket.emit('bet', { amount: 10 });
     });
@@ -232,7 +234,6 @@
       potSpan.textContent = state.pot != null ? state.pot : 0;
       blindsSpan.textContent = (state.smallBlind || 0) + ' / ' + (state.bigBlind || 0);
 
-      // Ход игрока
       if (state.currentTurn && state.players) {
         const current = state.players.find(p => p.id === state.currentTurn);
         currentTurnSpan.textContent = current ? (current.name || current.id) : '—';
@@ -240,7 +241,6 @@
         currentTurnSpan.textContent = '—';
       }
 
-      // Борд
       if (state.communityCards && state.communityCards.length > 0) {
         boardCardsSpan.innerHTML = state.communityCards
           .map(cardToString)
@@ -250,7 +250,6 @@
         boardCardsSpan.innerHTML = '<small>—</small>';
       }
 
-      // Игроки
       if (!state.players || state.players.length === 0) {
         playersList.innerHTML = '<small>Нет подключений.</small>';
       } else {
@@ -266,7 +265,6 @@
         }).join('');
       }
 
-      // Свой стек и карты (yourCards)
       yourStackSpan.textContent = '—';
       yourCardsDiv.innerHTML = '<small>—</small>';
 
@@ -287,7 +285,6 @@
 
     function cardToString(card) {
       if (!card) return '';
-      // На сервере карта как {rank,suit}
       if (typeof card === 'string') return card;
       const rank = card.rank || '?';
       const suit = card.suit || '';
