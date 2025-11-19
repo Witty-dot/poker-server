@@ -6,7 +6,7 @@ const { createDeck, dealCards } = require('./poker');
 const path = require('path');
 const app = express();
 app.use(cors());
-express.json());
+app.express.json());
 // Отдаём фронтенд
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
