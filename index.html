@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Poker Demo Table</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Socket.IO с CDN -->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"
+          integrity="sha384-W4soF8b2W2TJFpV4gw3AaxkLi3oReSMqYyvyimKB9Y5AuC21KfvihQ6yKt8I4dEt"
+          crossorigin="anonymous"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #111;
+      color: #eee;
+    }
+    .card {
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 16px;
+      background: #1b1b1b;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    }
+    h1 {
+      font-size: 20px;
+      margin-top: 0;
+    }
+    label, input, button {
+      font-size: 14px;
+    }
+    input {
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid #444;
+      background: #000;
+      color: #eee;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    button {
+      margin-top: 8px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: none;
+      background: #2d8cff;
+      color: #fff;
+      cursor: pointer;
+    }
+    button:disabled {
+      background: #555;
+      cursor: default;
+    }
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .table-info, .players, .you {
+      margin-top: 12px;
+      padding: 8px;
+      background: #111;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    .player-row {
+      display: flex;
+      flex-direction: column;
+      padding: 4px 0;
+      border-bottom: 1px solid #222;
+    }
+    .player-row:last-child {
+      border-bottom: none;
+    }
+    .player-main {
+      display: flex;
+      justify-content: space-between;
+    }
+    small {
+      color: #888;
+    }
+    .pill {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: #222;
+      margin-right: 4px;
+      font-size: 12px;
+    }
+    .error {
+      color: #ff6b6b;
+      margin-top: 4px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Poker Demo Table</h1>
+    <p><small>Демо одного стола: подключение игроков, раздача карт, банк, стадии раздачи.</small></p>
+
+    <label for="name">Ваш ник:</label>
+    <input id="name" type="text" placeholder="Player" />
+
+    <div class="row">
+      <button id="joinBtn">Подключиться</button>
+      <button id="leaveBtn" disabled>Отключиться</button>
+    </div>
+
+    <div class="row">
+      <button id="startBtn" disabled>Начать раздачу</button>
+      <button id="nextBtn" disabled>Следующая стадия</button>
+      <button id="betBtn" disabled>Поставить 10</button>
+    </div>
+
+    <div id="errorBox" class="error"></div>
+
+    <div class="table-info">
+      <div><strong>Стадия:</strong> <span id="stage">waiting</span></div>
+      <div><strong>Банк:</strong> <span id="pot">0</span> фишек</div>
+      <div><strong>Блайнды:</strong> <span id="blinds">10 / 20</span></div>
+      <div><strong>Ход игрока:</strong> <span id="currentTurn">—</span></div>
+      <div style="margin-top:4px;">
+        <strong>Борд:</strong>
+        <span id="boardCards"><small>—</small></span>
+      </div>
+    </div>
+
+    <div class="you">
+      <strong>Ваши карты:</strong>
+      <div id="yourCards"><small>—</small></div>
+      <div><strong>Ваш стек:</strong> <span id="yourStack">—</span></div>
+    </div>
+
+    <div class="players">
+      <strong>Игроки за столом:</strong>
+      <div id="playersList">
+        <small>Нет подключений.</small>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const joinBtn = document.getElementById('joinBtn');
+    const leaveBtn = document.getElementById('leaveBtn');
+    const startBtn = document.getElementById('startBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const betBtn = document.getElementById('betBtn');
+    const nameInput = document.getElementById('name');
+
+    const errorBox = document.getElementById('errorBox');
+    const stageSpan = document.getElementById('stage');
+    const potSpan = document.getElementById('pot');
+    const blindsSpan = document.getElementById('blinds');
+    const currentTurnSpan = document.getElementById('currentTurn');
+    const boardCardsSpan = document.getElementById('boardCards');
+    const yourCardsDiv = document.getElementById('yourCards');
+    const yourStackSpan = document.getElementById('yourStack');
+    const playersList = document.getElementById('playersList');
+
+    // Подключаемся к тому же хосту, откуда открыт index.html
+    const socket = io(); // Render сам разрулит URL
+
+    let myId = null;
+
+    socket.on('connect', () => {
+      myId = socket.id;
+      console.log('Connected, id=', myId);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected');
+      joinBtn.disabled = false;
+      leaveBtn.disabled = true;
+      startBtn.disabled = true;
+      nextBtn.disabled = true;
+      betBtn.disabled = true;
+    });
+
+    socket.on('gameState', (state) => {
+      renderState(state);
+    });
+
+    socket.on('errorMessage', (data) => {
+      if (data && data.message) {
+        errorBox.textContent = data.message;
+      }
+    });
+
+    joinBtn.addEventListener('click', () => {
+      const name = nameInput.value.trim() || 'Player';
+      errorBox.textContent = '';
+      socket.emit('joinTable', { playerName: name });
+      joinBtn.disabled = true;
+      leaveBtn.disabled = false;
+      startBtn.disabled = false;
+      nextBtn.disabled = false;
+      betBtn.disabled = false;
+    });
+
+    leaveBtn.addEventListener('click', () => {
+      socket.disconnect();
+      errorBox.textContent = '';
+      joinBtn.disabled = false;
+      leaveBtn.disabled = true;
+      startBtn.disabled = true;
+      nextBtn.disabled = true;
+      betBtn.disabled = true;
+    });
+
+    startBtn.addEventListener('click', () => {
+      errorBox.textContent = '';
+      socket.emit('startHand');
+    });
+
+    nextBtn.addEventListener('click', () => {
+      errorBox.textContent = '';
+      socket.emit('nextStage');
+    });
+
+    betBtn.addEventListener('click', () => {
+      errorBox.textContent = '';
+      socket.emit('bet', { amount: 10 });
+    });
+
+    function renderState(state) {
+      if (!state) return;
+
+      stageSpan.textContent = state.stage || 'waiting';
+      potSpan.textContent = state.pot != null ? state.pot : 0;
+      blindsSpan.textContent = (state.smallBlind || 0) + ' / ' + (state.bigBlind || 0);
+
+      // Ход игрока
+      if (state.currentTurn && state.players) {
+        const current = state.players.find(p => p.id === state.currentTurn);
+        currentTurnSpan.textContent = current ? (current.name || current.id) : '—';
+      } else {
+        currentTurnSpan.textContent = '—';
+      }
+
+      // Борд
+      if (state.communityCards && state.communityCards.length > 0) {
+        boardCardsSpan.innerHTML = state.communityCards
+          .map(cardToString)
+          .map(c => '<span class="pill">' + escapeHtml(c) + '</span>')
+          .join('');
+      } else {
+        boardCardsSpan.innerHTML = '<small>—</small>';
+      }
+
+      // Игроки
+      if (!state.players || state.players.length === 0) {
+        playersList.innerHTML = '<small>Нет подключений.</small>';
+      } else {
+        playersList.innerHTML = state.players.map(p => {
+          return `
+            <div class="player-row">
+              <div class="player-main">
+                <span>#${escapeHtml(p.id)} ${escapeHtml(p.name || '')}</span>
+                <span>${p.stack} фишек${p.inHand ? ' (в игре)' : ''}</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Свой стек и карты (yourCards)
+      yourStackSpan.textContent = '—';
+      yourCardsDiv.innerHTML = '<small>—</small>';
+
+      if (state.players && state.players.length > 0 && socket.id) {
+        const me = state.players.find(p => p.id === socket.id);
+        if (me) {
+          yourStackSpan.textContent = me.stack;
+
+          if (state.yourCards && state.yourCards.length > 0) {
+            yourCardsDiv.innerHTML = state.yourCards
+              .map(cardToString)
+              .map(c => '<span class="pill">' + escapeHtml(c) + '</span>')
+              .join('');
+          }
+        }
+      }
+    }
+
+    function cardToString(card) {
+      if (!card) return '';
+      // На сервере карта как {rank,suit}
+      if (typeof card === 'string') return card;
+      const rank = card.rank || '?';
+      const suit = card.suit || '';
+      return String(rank) + String(suit);
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, function(m) {
+        return ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;'
+        })[m];
+      });
+    }
+  </script>
+</body>
+</html>
