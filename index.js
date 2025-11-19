@@ -4,9 +4,11 @@ const cors = require('cors');
 const { Server } = require('socket.io');
 const { createDeck, dealCards } = require('./poker');
 const path = require('path');
+
 const app = express();
 app.use(cors());
 app.use(express.json());
+
 // Отдаём фронтенд
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
@@ -70,7 +72,7 @@ function startHand() {
     }
   }
 
-  // Условные блайнды (берём первых двух после дилера)
+  // Условные блайнды (берём двух после дилера)
   const sbIndex = table.buttonIndex % table.players.length;
   const bbIndex = (table.buttonIndex + 1) % table.players.length;
 
@@ -112,7 +114,6 @@ function dealCommunity(count) {
 function nextStage() {
   switch (table.stage) {
     case 'waiting':
-      // если нажали nextStage без startHand
       startHand();
       break;
     case 'preflop':
@@ -133,7 +134,6 @@ function nextStage() {
       break;
     case 'showdown':
     default:
-      // новая раздача: сдвигаем баттон
       table.buttonIndex = (table.buttonIndex + 1) % Math.max(table.players.length, 1);
       resetHandState();
       break;
@@ -174,7 +174,6 @@ io.on('connection', (socket) => {
   socket.on('joinTable', (data) => {
     const name = (data && data.playerName ? String(data.playerName) : '').trim() || 'Player';
 
-    // если уже сидит - игнор
     if (table.players.find(p => p.id === socket.id)) {
       return;
     }
@@ -220,7 +219,7 @@ io.on('connection', (socket) => {
 
     player.stack -= bet;
     table.pot += bet;
-    table.currentTurnId = socket.id; // упрощённо считаем, что ходил тот, кто бетнул
+    table.currentTurnId = socket.id;
 
     console.log(`Player ${player.name} (#${player.id}) bet ${bet}, pot=${table.pot}`);
     broadcastGameState();
@@ -238,7 +237,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // При подключении сразу отдаём состояние
   socket.emit('gameState', getPublicStateFor(socket.id));
 });
 
