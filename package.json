@@ -1,12 +1,14 @@
 {
   "name": "poker-server",
   "version": "1.0.0",
+  "description": "Demo poker server with Socket.IO, cards, pot and stages",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "socket.io": "^4.7.2"
+    "cors": "^2.8.5",
+    "express": "^4.19.0",
+    "socket.io": "^4.7.5"
   }
 }
