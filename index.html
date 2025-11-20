@@ -4,7 +4,10 @@
   <meta charset="utf-8" />
   <title>Poker Demo Table</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- ВАЖНО: клиент Socket.IO от сервера -->
   <script src="/socket.io/socket.io.js"></script>
+
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -90,6 +93,7 @@
       color: #ff6b6b;
       margin-top: 4px;
       font-size: 12px;
+      min-height: 16px;
     }
   </style>
 </head>
@@ -109,7 +113,12 @@
     <div class="row">
       <button id="startBtn" disabled>Начать раздачу</button>
       <button id="nextBtn" disabled>Следующая стадия</button>
-      <button id="betBtn" disabled>Поставить 10</button>
+    </div>
+
+    <div class="row">
+      <button id="checkCallBtn" disabled>Чек / Колл</button>
+      <button id="betBtn" disabled>Бет 10</button>
+      <button id="foldBtn" disabled>Фолд</button>
     </div>
 
     <div id="errorBox" class="error"></div>
@@ -144,7 +153,9 @@
     const leaveBtn = document.getElementById('leaveBtn');
     const startBtn = document.getElementById('startBtn');
     const nextBtn = document.getElementById('nextBtn');
+    const checkCallBtn = document.getElementById('checkCallBtn');
     const betBtn = document.getElementById('betBtn');
+    const foldBtn = document.getElementById('foldBtn');
     const nameInput = document.getElementById('name');
 
     const errorBox = document.getElementById('errorBox');
@@ -157,20 +168,24 @@
     const yourStackSpan = document.getElementById('yourStack');
     const playersList = document.getElementById('playersList');
 
-    const socket = io(); // тот же хост, что и страница
+    const socket = io();
     console.log('Socket.io init');
 
     socket.on('connect', () => {
       console.log('Connected, id=', socket.id);
+      errorBox.textContent = 'Подключен к серверу';
     });
 
     socket.on('disconnect', () => {
       console.log('Disconnected');
+      errorBox.textContent = 'Отключен от сервера';
       joinBtn.disabled = false;
       leaveBtn.disabled = true;
       startBtn.disabled = true;
       nextBtn.disabled = true;
+      checkCallBtn.disabled = true;
       betBtn.disabled = true;
+      foldBtn.disabled = true;
     });
 
     socket.on('gameState', (state) => {
@@ -180,49 +195,55 @@
 
     socket.on('errorMessage', (data) => {
       if (data && data.message) {
-        errorBox.textContent = data.message;
+        errorBox.textContent = 'Ошибка: ' + data.message;
       }
     });
 
     joinBtn.addEventListener('click', () => {
       const name = nameInput.value.trim() || 'Player';
-      errorBox.textContent = '';
-      console.log('joinTable click');
+      errorBox.textContent = 'Подключаемся к столу...';
       socket.emit('joinTable', { playerName: name });
       joinBtn.disabled = true;
       leaveBtn.disabled = false;
       startBtn.disabled = false;
       nextBtn.disabled = false;
-      betBtn.disabled = false;
     });
 
     leaveBtn.addEventListener('click', () => {
-      console.log('leave click');
       socket.disconnect();
       errorBox.textContent = '';
       joinBtn.disabled = false;
       leaveBtn.disabled = true;
       startBtn.disabled = true;
       nextBtn.disabled = true;
+      checkCallBtn.disabled = true;
       betBtn.disabled = true;
+      foldBtn.disabled = true;
     });
 
     startBtn.addEventListener('click', () => {
-      console.log('startHand click');
       errorBox.textContent = '';
       socket.emit('startHand');
     });
 
     nextBtn.addEventListener('click', () => {
-      console.log('nextStage click');
       errorBox.textContent = '';
       socket.emit('nextStage');
     });
 
-    betBtn.addEventListener('click', () => {
-      console.log('bet click');
+    checkCallBtn.addEventListener('click', () => {
       errorBox.textContent = '';
-      socket.emit('bet', { amount: 10 });
+      socket.emit('action', { type: 'call' }); // сервер сам решит: check или call
+    });
+
+    betBtn.addEventListener('click', () => {
+      errorBox.textContent = '';
+      socket.emit('action', { type: 'bet' });
+    });
+
+    foldBtn.addEventListener('click', () => {
+      errorBox.textContent = '';
+      socket.emit('action', { type: 'fold' });
     });
 
     function renderState(state) {
@@ -263,22 +284,30 @@
         }).join('');
       }
 
+      // свои карты + стек
       yourStackSpan.textContent = '—';
       yourCardsDiv.innerHTML = '<small>—</small>';
 
+      let me = null;
       if (state.players && state.players.length > 0 && socket.id) {
-        const me = state.players.find(p => p.id === socket.id);
-        if (me) {
-          yourStackSpan.textContent = me.stack;
+        me = state.players.find(p => p.id === socket.id);
+      }
 
-          if (state.yourCards && state.yourCards.length > 0) {
-            yourCardsDiv.innerHTML = state.yourCards
-              .map(cardToString)
-              .map(c => '<span class="pill">' + escapeHtml(c) + '</span>')
-              .join('');
-          }
+      if (me) {
+        yourStackSpan.textContent = me.stack;
+        if (state.yourCards && state.yourCards.length > 0) {
+          yourCardsDiv.innerHTML = state.yourCards
+            .map(cardToString)
+            .map(c => '<span class="pill">' + escapeHtml(c) + '</span>')
+            .join('');
         }
       }
+
+      // включаем / выключаем кнопки действий по очереди
+      const isMyTurn = state.currentTurn && me && state.currentTurn === me.id;
+      checkCallBtn.disabled = !isMyTurn;
+      betBtn.disabled = !isMyTurn;
+      foldBtn.disabled = !isMyTurn;
     }
 
     function cardToString(card) {
