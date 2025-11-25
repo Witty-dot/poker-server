@@ -71,8 +71,9 @@
     .player-row {
       display: flex;
       flex-direction: column;
-      padding: 4px 0;
+      padding: 4px 6px;
       border-bottom: 1px solid #222;
+      transition: background 0.15s, box-shadow 0.15s, transform 0.05s;
     }
     .player-row:last-child {
       border-bottom: none;
@@ -113,6 +114,32 @@
       font-size: 12px;
       color: #9ae6b4;
     }
+    /* Подсветка текущего игрока */
+    .player-row.current-turn {
+      background: rgba(45, 140, 255, 0.08);
+      box-shadow: 0 0 0 1px rgba(45, 140, 255, 0.6);
+    }
+    /* Подсветка "вы" */
+    .player-row.me {
+      background: rgba(0, 255, 153, 0.06);
+      box-shadow: 0 0 0 1px rgba(0, 255, 153, 0.5);
+    }
+    .player-row.current-turn.me {
+      background: radial-gradient(circle at 0 0,
+        rgba(45, 140, 255, 0.25),
+        rgba(0, 0, 0, 0.8));
+      box-shadow: 0 0 0 1px rgba(0, 255, 204, 0.7);
+      transform: translateY(-1px);
+    }
+    /* Таймер */
+    .turn-timer {
+      margin-top: 4px;
+      font-size: 12px;
+      color: #ffd86b;
+    }
+    .turn-timer span {
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
@@ -142,10 +169,11 @@
 
     <div id="errorBox" class="error"></div>
     <div id="hintBox" class="hint"></div>
+    <div id="turnTimerBox" class="turn-timer"></div>
 
     <div class="table-info">
       <div><strong>Стадия:</strong> <span id="stage">waiting</span></div>
-      <div><strong>Событие:</strong> <span id="tableMessage">—</span></div>
+      <div><strong>Крупье:</strong> <span id="tableMessage">—</span></div>
       <div><strong>Общий банк (пред. улицы):</strong> <span id="mainPot">0</span> фишек</div>
       <div><strong>Банк текущей улицы:</strong> <span id="streetPot">0</span> фишек</div>
       <div><strong>Суммарный банк:</strong> <span id="totalPot">0</span> фишек</div>
@@ -162,7 +190,6 @@
       <strong>Ваши карты:</strong>
       <div id="yourCards"><small>—</small></div>
       <div><strong>Ваш стек:</strong> <span id="yourStack">—</span></div>
-      <div><strong>Таймер хода:</strong> <span id="turnTimer">—</span></div>
       <div class="your-message" id="yourMessage"></div>
     </div>
 
@@ -199,6 +226,7 @@
 
     const errorBox = document.getElementById('errorBox');
     const hintBox = document.getElementById('hintBox');
+    const turnTimerBox = document.getElementById('turnTimerBox');
 
     const stageSpan = document.getElementById('stage');
     const tableMessageSpan = document.getElementById('tableMessage');
@@ -213,39 +241,9 @@
     const yourStackSpan = document.getElementById('yourStack');
     const yourMessageDiv = document.getElementById('yourMessage');
     const playersList = document.getElementById('playersList');
-    const turnTimerSpan = document.getElementById('turnTimer');
 
     let lastState = null;
-    let turnCountdownInterval = null;
-
-    function stopTurnCountdown() {
-      if (turnCountdownInterval) {
-        clearInterval(turnCountdownInterval);
-        turnCountdownInterval = null;
-      }
-      if (turnTimerSpan) {
-        turnTimerSpan.textContent = '—';
-      }
-    }
-
-    function startTurnCountdown(deadline) {
-      stopTurnCountdown();
-      if (!deadline || !turnTimerSpan) return;
-
-      function tick() {
-        const msLeft = deadline - Date.now();
-        if (msLeft <= 0) {
-          turnTimerSpan.textContent = '0 c';
-          stopTurnCountdown();
-          return;
-        }
-        const seconds = Math.ceil(msLeft / 1000);
-        turnTimerSpan.textContent = seconds + ' c';
-      }
-
-      tick();
-      turnCountdownInterval = setInterval(tick, 500);
-    }
+    let turnTimerInterval = null;  // интервал обновления обратного отсчёта
 
     if (typeof io === 'undefined') {
       errorBox.textContent = 'Ошибка: socket.io клиент не загрузился (io is undefined).';
@@ -270,7 +268,8 @@
         betBtn.disabled = true;
         playPauseBtn.disabled = true;
         hintBox.textContent = '';
-        stopTurnCountdown();
+        clearTurnTimerInterval();
+        turnTimerBox.textContent = '';
       });
 
       socket.on('gameState', (state) => {
@@ -349,6 +348,40 @@
       socket.emit('setPlaying', { playing: wantPlay });
     });
 
+    // ===== Таймер обратного отсчёта (только для ходящего) =====
+
+    function clearTurnTimerInterval() {
+      if (turnTimerInterval) {
+        clearInterval(turnTimerInterval);
+        turnTimerInterval = null;
+      }
+    }
+
+    function startTurnTimer(deadlineMs) {
+      clearTurnTimerInterval();
+      if (!deadlineMs) {
+        turnTimerBox.textContent = '';
+        return;
+      }
+
+      function update() {
+        const now = Date.now();
+        let remaining = Math.ceil((deadlineMs - now) / 1000);
+        if (remaining < 0) remaining = 0;
+
+        if (remaining === 0) {
+          turnTimerBox.textContent = 'Время на ход истекло.';
+          clearTurnTimerInterval();
+        } else {
+          turnTimerBox.innerHTML =
+            'Ваш ход. До авто-действия: <span>' + remaining + '</span> сек.';
+        }
+      }
+
+      update();
+      turnTimerInterval = setInterval(update, 500);
+    }
+
     // ===== Рендер состояния =====
 
     function renderState(state) {
@@ -401,14 +434,25 @@
       if (!state.players || state.players.length === 0) {
         playersList.innerHTML = '<small>Нет подключений.</small>';
       } else {
+        const meId = socket && socket.id ? socket.id : null;
         playersList.innerHTML = state.players.map(p => {
           const isButton = state.buttonPlayerId && state.buttonPlayerId === p.id;
           const btn = isButton ? '<span class="pill pill-btn">BTN</span> ' : '';
           const pausedLabel = p.isPaused ? ' (на паузе)' : '';
-          const rowStyle = p.isPaused ? 'opacity:0.5;' : '';
           const inHandLabel = p.inHand ? ' (в игре)' : '';
+          const rowClasses = [];
+          if (state.currentTurn && state.currentTurn === p.id) {
+            rowClasses.push('current-turn');
+          }
+          if (meId && meId === p.id) {
+            rowClasses.push('me');
+          }
+          const rowClassAttr = rowClasses.length ? ' class="player-row ' + rowClasses.join(' ') + '"' : ' class="player-row"';
+
+          const rowOpacity = p.isPaused ? 'opacity:0.5;' : '';
+
           return `
-            <div class="player-row" style="${rowStyle}">
+            <div${rowClassAttr} style="${rowOpacity}">
               <div class="player-main">
                 <span>${btn}${escapeHtml(p.name || p.id)}${pausedLabel}</span>
                 <span>${p.stack} фишек${inHandLabel}</span>
@@ -459,18 +503,20 @@
       callBtn.disabled = !canAct;
       betBtn.disabled = !canAct;
 
-      // управление таймером хода — только для текущего игрока
-      if (me && state.yourTurn && state.turnDeadline) {
-        startTurnCountdown(state.turnDeadline);
+      // таймер: только если наш ход и есть дедлайн
+      if (canAct && state.turnDeadline) {
+        startTurnTimer(state.turnDeadline);
       } else {
-        stopTurnCountdown();
+        clearTurnTimerInterval();
+        turnTimerBox.textContent = '';
       }
 
+      // Подсказки-крупье
       if (!canAct) {
         if (stage !== 'waiting' && stage !== 'showdown' && currentPlayerName) {
-          hintBox.textContent = 'Ход за игроком ' + currentPlayerName;
+          hintBox.textContent = 'Ход за игроком ' + currentPlayerName + '. Ожидаем его решение.';
         } else if (stage === 'showdown') {
-          hintBox.textContent = 'Раздача завершена (шоудаун / победа без вскрытия)';
+          hintBox.textContent = 'Раздача завершена. Крупье распределил банк между победителями.';
         } else {
           hintBox.textContent = '';
         }
@@ -481,11 +527,11 @@
       if (toCall <= 0) {
         callBtn.textContent = 'Чек';
         betBtn.textContent = 'Бет 10';
-        hintBox.textContent = 'Ваш ход. Можно чекнуть или поставить 10.';
+        hintBox.textContent = 'Ваш ход. Можно чекнуть или открыть торговлю ставкой 10 фишек.';
       } else {
         callBtn.textContent = 'Колл ' + toCall;
         betBtn.textContent = 'Рейз до ' + (currentBet + 10);
-        hintBox.textContent = 'Ваш ход. Для колла нужно докинуть ' + toCall + ' фишек.';
+        hintBox.textContent = 'Ваш ход. Для колла добавьте ' + toCall + ' фишек или повысьте ставку на 10.';
       }
     }
 
