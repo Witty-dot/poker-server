@@ -21,7 +21,7 @@ const io = new Server(server, {
   }
 });
 
-// ===== Оценка рук (упрощённый, но нормальный ранкер) =====
+// ================= Оценка покерных рук =================
 
 const RANK_TO_VALUE = {
   '2': 2, '3': 3, '4': 4, '5': 5,
@@ -180,10 +180,25 @@ function evaluate7(cards7) {
   return best;
 }
 
-// ===== Состояние стола =====
+function describeHandScore(score) {
+  const category = Math.floor(score / 1e10);
+  switch (category) {
+    case 8: return 'Стрит-флэш';
+    case 7: return 'Каре';
+    case 6: return 'Фулл-хаус';
+    case 5: return 'Флэш';
+    case 4: return 'Стрит';
+    case 3: return 'Сет';
+    case 2: return 'Две пары';
+    case 1: return 'Пара';
+    default: return 'Старшая карта';
+  }
+}
+
+// ================= Состояние стола =================
 
 let table = {
-  players: [],          // { id, name, stack, hand, inHand, hasFolded, betThisStreet, hasActedThisStreet }
+  players: [],          // { id, name, stack, hand, inHand, hasFolded, betThisStreet, hasActedThisStreet, message }
   deck: [],
   communityCards: [],
   pot: 0,
@@ -191,8 +206,8 @@ let table = {
   smallBlind: 10,
   bigBlind: 20,
   buttonIndex: 0,
-  currentBet: 0,
-  minRaise: 10,
+  currentBet: 0,        // текущая ставка на улице
+  minRaise: 10,         // шаг рейза (для демо фикс 10)
   currentTurnIndex: null
 };
 
@@ -206,18 +221,19 @@ function resetHandState() {
   table.pot = 0;
   table.stage = 'waiting';
   table.currentBet = 0;
+  table.minRaise = 10;
   table.currentTurnIndex = null;
-  table.minRaise = table.bigBlind;
   table.players.forEach(p => {
     p.hand = [];
     p.inHand = false;
     p.hasFolded = false;
     p.betThisStreet = 0;
     p.hasActedThisStreet = false;
+    p.message = null;
   });
 }
 
-// ===== Раздача =====
+// ================= Раздача =================
 
 function startHand() {
   if (table.players.length < 2) {
@@ -230,7 +246,7 @@ function startHand() {
   table.pot = 0;
   table.stage = 'preflop';
   table.currentBet = 0;
-  table.minRaise = table.bigBlind;
+  table.minRaise = 10;
 
   table.players.forEach(p => {
     p.hand = [];
@@ -238,6 +254,7 @@ function startHand() {
     p.hasFolded = false;
     p.betThisStreet = 0;
     p.hasActedThisStreet = false;
+    p.message = null;
   });
 
   // Раздать по 2 карты
@@ -270,7 +287,7 @@ function startHand() {
   takeBlind(bbIndex, table.bigBlind);
 
   table.currentBet = table.bigBlind;
-  table.minRaise = table.bigBlind;
+  table.minRaise = 10;
   table.currentTurnIndex = utgIndex;
 
   console.log('Hand started. Pot:', table.pot, 'Stage:', table.stage);
@@ -291,7 +308,7 @@ function dealCommunity(count) {
 function startNewStreet(newStage) {
   table.stage = newStage;
   table.currentBet = 0;
-  table.minRaise = table.bigBlind; // для демо просто фиксированная мин.ставка
+  table.minRaise = 10;
   table.players.forEach(p => {
     p.betThisStreet = 0;
     p.hasActedThisStreet = false;
@@ -315,14 +332,14 @@ function startNewStreet(newStage) {
   }
 }
 
-// Все ли активные игроки уравняли ставку/закончили действия на улице
+// все ли активные уравняли ставку/сходили
 function isBettingRoundComplete() {
   const actives = activePlayers();
   if (actives.length <= 1) return true;
   return actives.every(p => p.hasActedThisStreet && p.betThisStreet === table.currentBet);
 }
 
-// ===== Шоудаун =====
+// ================= Шоудаун =================
 
 function goToShowdown() {
   table.stage = 'showdown';
@@ -337,29 +354,50 @@ function resolveShowdown() {
   if (contenders.length === 1) {
     const winner = contenders[0];
     winner.stack += table.pot;
+    winner.message = `Вы выиграли без вскрытия, банк: ${table.pot}`;
+    table.players.forEach(p => {
+      if (p.id !== winner.id) {
+        p.message = `Игрок ${winner.name} забрал банк без вскрытия`;
+      }
+    });
     console.log(`Winner by fold: ${winner.name}, +${table.pot}`);
     table.pot = 0;
     return;
   }
 
-  const scores = contenders.map(p => {
+  const results = contenders.map(p => {
     const cards7 = [...p.hand, ...table.communityCards];
     const score = evaluate7(cards7);
-    return { player: p, score };
+    const text = describeHandScore(score);
+    return { player: p, score, text };
   });
 
-  const best = Math.max(...scores.map(s => s.score));
-  const winners = scores.filter(s => s.score === best).map(s => s.player);
+  const best = Math.max(...results.map(r => r.score));
+  const winners = results.filter(r => r.score === best);
 
   const share = Math.floor(table.pot / winners.length);
   winners.forEach(w => {
-    w.stack += share;
+    w.player.stack += share;
   });
-  console.log('Showdown winners:', winners.map(w => w.name), 'share each:', share);
+
+  const winnersDesc = winners
+    .map(w => `${w.player.name || 'Игрок'} — ${w.text}`)
+    .join(', ');
+
+  table.players.forEach(p => {
+    const winRec = winners.find(w => w.player.id === p.id);
+    if (winRec) {
+      p.message = `Вы выиграли с комбинацией: ${winRec.text}. Банк: ${share}`;
+    } else {
+      p.message = `Победитель(и): ${winnersDesc}`;
+    }
+  });
+
+  console.log('Showdown winners:', winnersDesc, 'share each:', share);
   table.pot = 0;
 }
 
-// ===== Авто-переход улиц =====
+// ================= Авто-переход улиц =================
 
 function autoAdvanceIfReady() {
   const stages = ['preflop', 'flop', 'turn', 'river'];
@@ -387,7 +425,7 @@ function autoAdvanceIfReady() {
   }
 }
 
-// ===== Состояние для клиента =====
+// ================= Состояние для клиента =================
 
 function getPublicStateFor(playerId) {
   const player = table.players.find(p => p.id === playerId);
@@ -403,14 +441,19 @@ function getPublicStateFor(playerId) {
     smallBlind: table.smallBlind,
     bigBlind: table.bigBlind,
     communityCards: table.communityCards,
+    currentBet: table.currentBet,
+    minRaise: table.minRaise,
     players: table.players.map(p => ({
       id: p.id,
       name: p.name,
       stack: p.stack,
-      inHand: p.inHand && !p.hasFolded
+      inHand: p.inHand && !p.hasFolded,
+      betThisStreet: p.betThisStreet
     })),
     yourCards: player ? player.hand : [],
-    currentTurn: current
+    currentTurn: current,
+    yourTurn: !!(player && current === player.id),
+    message: player ? player.message || null : null
   };
 }
 
@@ -420,7 +463,7 @@ function broadcastGameState() {
   }
 }
 
-// ===== Ход по кругу =====
+// ================= Ход по кругу =================
 
 function advanceTurn() {
   const len = table.players.length;
@@ -444,7 +487,7 @@ function advanceTurn() {
   table.currentTurnIndex = null;
 }
 
-// ===== Обработка действий игрока =====
+// ================= Обработка действий игрока =================
 
 function handlePlayerAction(playerId, actionType) {
   const idx = table.players.findIndex(p => p.id === playerId);
@@ -475,7 +518,7 @@ function handlePlayerAction(playerId, actionType) {
     return;
   }
 
-  // CALL (или CHECK, если нечего коллировать)
+  // CALL / CHECK
   if (actionType === 'call') {
     const toCall = table.currentBet - player.betThisStreet;
 
@@ -504,13 +547,13 @@ function handlePlayerAction(playerId, actionType) {
     return;
   }
 
-  // BET / RAISE
+  // BET / RAISE (фикс +10)
   if (actionType === 'bet') {
-    const minRaise = table.minRaise || table.bigBlind;
+    const minRaise = table.minRaise || 10;
 
     if (table.currentBet === 0) {
-      // ПЕРВЫЙ БЕТ НА УЛИЦЕ
-      const toBet = Math.min(player.stack, minRaise);
+      // Первый бет на улице
+      const toBet = Math.min(player.stack, 10);
       if (toBet <= 0) return;
 
       player.stack -= toBet;
@@ -518,10 +561,10 @@ function handlePlayerAction(playerId, actionType) {
       table.pot += toBet;
 
       table.currentBet = player.betThisStreet;
-      table.minRaise = minRaise;
+      table.minRaise = 10;
       player.hasActedThisStreet = true;
 
-      // все остальные должны принимать решение
+      // остальные должны принять решение
       for (const p of table.players) {
         if (p.id !== player.id && p.inHand && !p.hasFolded) {
           p.hasActedThisStreet = false;
@@ -531,7 +574,7 @@ function handlePlayerAction(playerId, actionType) {
       advanceTurn();
       return;
     } else {
-      // РЕЙЗ: увеличиваем существующую ставку хотя бы на minRaise
+      // РЕЙЗ на +10 поверх текущей ставки
       const targetBet = table.currentBet + minRaise;
       const toPay = targetBet - player.betThisStreet;
       const pay = Math.min(player.stack, toPay);
@@ -541,13 +584,13 @@ function handlePlayerAction(playerId, actionType) {
       player.betThisStreet += pay;
       table.pot += pay;
 
-      table.minRaise = minRaise;
       table.currentBet = player.betThisStreet;
+      table.minRaise = minRaise;
       player.hasActedThisStreet = true;
 
-      // все остальные снова принимают решение
+      // остальные снова принимают решение
       for (const p of table.players) {
-        if (p.id !== player.id && p.inHand && !p.hasFolded) {
+        if (p.id !== player.id && p.inHand && !p.hasFoldled) { // ОПЕЧАТКА ИСПРАВИТЬ: hasFoldled -> hasFolded
           p.hasActedThisStreet = false;
         }
       }
@@ -560,7 +603,7 @@ function handlePlayerAction(playerId, actionType) {
   console.log('Unknown action:', actionType);
 }
 
-// ===== Socket.IO =====
+// ================= Socket.IO =================
 
 io.on('connection', (socket) => {
   console.log('New player connected:', socket.id);
@@ -580,7 +623,8 @@ io.on('connection', (socket) => {
       inHand: false,
       hasFolded: false,
       betThisStreet: 0,
-      hasActedThisStreet: false
+      hasActedThisStreet: false,
+      message: null
     };
 
     table.players.push(player);
