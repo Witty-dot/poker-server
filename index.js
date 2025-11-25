@@ -486,7 +486,7 @@ function handleTurnTimeout() {
     // но не считаем это кликом игрока
     const prevClicked = p.hasClickedThisHand;
 
-    handlePlayerAction(p.id, 'call'); // внутри для toCall<=0 это чек
+    handlePlayerAction(p.id, { type: 'call', isAuto: true }); // внутри для toCall<=0 это чек
 
     p.hasClickedThisHand = prevClicked; // возвращаем флаг клика
 
@@ -1029,7 +1029,7 @@ function broadcastGameState() {
   }
 }
 
-// ================= Ход по кругу =================
+// ================= Обход по кругу =================
 
 function advanceTurn() {
   const len = table.players.length;
@@ -1057,7 +1057,14 @@ function advanceTurn() {
 
 // ================= Обработка действий игрока =================
 
-function handlePlayerAction(playerId, actionType) {
+/**
+ * action: { type: 'fold'|'call'|'bet'|'allin', amount?: number, isAuto?: boolean }
+ */
+function handlePlayerAction(playerId, action) {
+  if (!action || !action.type) return;
+  const actionType = action.type;
+  const isAuto = !!action.isAuto;
+
   const idx = table.players.findIndex(p => p.id === playerId);
   if (idx < 0) return;
 
@@ -1071,8 +1078,10 @@ function handlePlayerAction(playerId, actionType) {
     return;
   }
 
-  // помечаем, что игрок сам что-то нажимал в этой раздаче
-  player.hasClickedThisHand = true;
+  // помечаем, что игрок сам что-то нажимал в этой раздаче (кроме авто-действий таймера)
+  if (!isAuto) {
+    player.hasClickedThisHand = true;
+  }
 
   // FOLD
   if (actionType === 'fold') {
@@ -1113,7 +1122,14 @@ function handlePlayerAction(playerId, actionType) {
     player.totalBet = (player.totalBet || 0) + pay;
     table.streetPot += pay;
     player.hasActedThisStreet = true;
-    table.lastLogMessage = `Игрок ${player.name} колл ${pay}`;
+
+    if (player.stack === 0 && player.betThisStreet < table.currentBet) {
+      table.lastLogMessage = `Игрок ${player.name} олл-ин на ${player.betThisStreet} фишек (меньше текущей ставки)`;
+    } else if (player.stack === 0) {
+      table.lastLogMessage = `Игрок ${player.name} олл-ин на колл (${player.betThisStreet} фишек)`;
+    } else {
+      table.lastLogMessage = `Игрок ${player.name} колл ${pay}`;
+    }
 
     autoAdvanceIfReady();
     if (table.stage !== 'showdown' && !isBettingRoundComplete()) {
@@ -1122,13 +1138,59 @@ function handlePlayerAction(playerId, actionType) {
     return;
   }
 
-  // BET / RAISE (фикс +10)
+  // ЯВНЫЙ ALL-IN
+  if (actionType === 'allin') {
+    if (player.stack <= 0) return;
+
+    const all = player.stack;
+    const oldBet = player.betThisStreet;
+
+    player.stack = 0;
+    player.betThisStreet += all;
+    player.totalBet = (player.totalBet || 0) + all;
+    table.streetPot += all;
+    player.hasActedThisStreet = true;
+
+    if (player.betThisStreet > table.currentBet) {
+      const raiseSize = player.betThisStreet - table.currentBet;
+      table.minRaise = Math.max(table.minRaise || 10, raiseSize);
+      table.currentBet = player.betThisStreet;
+
+      // остальные должны принять решение
+      for (const p of table.players) {
+        if (p.id !== player.id && p.inHand && !p.hasFolded && !p.isPaused && p.stack > 0) {
+          p.hasActedThisStreet = false;
+        }
+      }
+
+      table.lastLogMessage = `Игрок ${player.name} пошёл олл-ин на ${player.betThisStreet} фишек`;
+    } else if (player.betThisStreet === table.currentBet) {
+      table.lastLogMessage = `Игрок ${player.name} олл-ин на колл (${player.betThisStreet} фишек)`;
+    } else {
+      // rare: олл-ин меньше текущей ставки, но допустим как short stack
+      table.lastLogMessage = `Игрок ${player.name} олл-ин на ${player.betThisStreet} фишек (меньше текущей ставки)`;
+    }
+
+    autoAdvanceIfReady();
+    if (table.stage !== 'showdown' && !isBettingRoundComplete()) {
+      advanceTurn();
+    }
+    return;
+  }
+
+  // BET / RAISE (поддержка кастомной суммы amount, иначе фикс +10)
   if (actionType === 'bet') {
     const minRaise = table.minRaise || 10;
+    let rawAmount = null;
+
+    if (typeof action.amount === 'number' && !Number.isNaN(action.amount)) {
+      rawAmount = Math.max(0, Math.floor(action.amount));
+    }
 
     if (table.currentBet === 0) {
-      // первый бет на улице
-      const toBet = Math.min(player.stack, 10);
+      // первый бет на улице: amount — размер ставки, по умолчанию 10
+      const desired = rawAmount && rawAmount > 0 ? rawAmount : 10;
+      const toBet = Math.min(player.stack, desired);
       if (toBet <= 0) return;
 
       player.stack -= toBet;
@@ -1151,9 +1213,16 @@ function handlePlayerAction(playerId, actionType) {
       advanceTurn();
       return;
     } else {
-      // рейз на +10 поверх текущей ставки
-      const targetBet = table.currentBet + minRaise;
-      const toPay = targetBet - player.betThisStreet;
+      // рейз: amount трактуем как "рейз до", но не ниже currentBet + minRaise
+      let desiredTarget = rawAmount && rawAmount > 0
+        ? rawAmount
+        : (table.currentBet + minRaise);
+
+      if (desiredTarget < table.currentBet + minRaise) {
+        desiredTarget = table.currentBet + minRaise;
+      }
+
+      const toPay = desiredTarget - player.betThisStreet;
       const pay = Math.min(player.stack, toPay); // может быть all-in меньше целевого
       if (pay <= 0) return;
 
@@ -1164,9 +1233,16 @@ function handlePlayerAction(playerId, actionType) {
 
       // текущая ставка раунда — максимум по столу
       table.currentBet = Math.max(table.currentBet, player.betThisStreet);
-      table.minRaise = minRaise;
+      const raiseSize = table.currentBet - table.currentBet; // для аккуратности можно было бы хранить старое
+      table.minRaise = minRaise; // оставляем как есть, чтобы не усложнять
+
       player.hasActedThisStreet = true;
-      table.lastLogMessage = `Игрок ${player.name} рейз до ${player.betThisStreet}`;
+
+      if (player.stack === 0 && player.betThisStreet > table.currentBet) {
+        table.lastLogMessage = `Игрок ${player.name} олл-ин рейз до ${player.betThisStreet} фишек`;
+      } else {
+        table.lastLogMessage = `Игрок ${player.name} рейз до ${player.betThisStreet}`;
+      }
 
       for (const p of table.players) {
         if (p.id !== player.id && p.inHand && !p.hasFolded && !p.isPaused && p.stack > 0) {
@@ -1237,10 +1313,10 @@ io.on('connection', (socket) => {
 
   socket.on('action', (data) => {
     const type = data && data.type;
-    console.log('action from', socket.id, type);
+    console.log('action from', socket.id, type, data);
     if (!type) return;
 
-    handlePlayerAction(socket.id, type);
+    handlePlayerAction(socket.id, data);
     pushSnapshot(`after action ${type} from ${socket.id}`, table);
     broadcastGameState();
     scheduleTurnTimer();
