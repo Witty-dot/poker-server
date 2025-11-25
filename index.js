@@ -32,7 +32,8 @@ function pushSnapshot(reason, table) {
       betThisStreet: p.betThisStreet,
       inHand: p.inHand,
       hasFolded: p.hasFolded,
-      isPaused: !!p.isPaused
+      isPaused: !!p.isPaused,
+      totalBet: p.totalBet || 0
     }))
   };
 
@@ -61,7 +62,7 @@ app.get('/log', (req, res) => {
     lines.push(`  stage=${s.stage}, mainPot=${s.mainPot}, streetPot=${s.streetPot}, totalPot=${s.totalPot}`);
     s.players.forEach(pl => {
       lines.push(
-        `  - ${pl.name || pl.id}: stack=${pl.stack}, betThisStreet=${pl.betThisStreet}, inHand=${pl.inHand}, folded=${pl.hasFolded}, paused=${pl.isPaused}`
+        `  - ${pl.name || pl.id}: stack=${pl.stack}, betThisStreet=${pl.betThisStreet}, inHand=${pl.inHand}, folded=${pl.hasFolded}, paused=${pl.isPaused}, totalBet=${pl.totalBet}`
       );
     });
     return lines.join('\n');
@@ -347,7 +348,7 @@ let turnTimer = null;
 let nextHandTimer = null;
 
 let table = {
-  players: [],          // { id, name, stack, hand, inHand, hasFolded, betThisStreet, hasActedThisStreet, message, isPaused, hasClickedThisHand }
+  players: [],          // { id, name, stack, hand, inHand, hasFolded, betThisStreet, hasActedThisStreet, message, isPaused, hasClickedThisHand, totalBet }
   deck: [],
   communityCards: [],
   mainPot: 0,
@@ -396,12 +397,18 @@ function resetHandState() {
     p.hasActedThisStreet = false;
     p.message = null;
     p.hasClickedThisHand = false;
+    p.totalBet = 0;
   });
 }
 
 function collapseStreetPot() {
   table.mainPot += table.streetPot;
   table.streetPot = 0;
+}
+
+// Общий банк как сумма totalBet (для контроля и сайд-потов)
+function getTotalPotFromBets() {
+  return table.players.reduce((sum, p) => sum + (p.totalBet || 0), 0);
 }
 
 // ================= Таймеры =================
@@ -526,6 +533,7 @@ function startHand() {
     p.hasActedThisStreet = false;
     p.message = null;
     p.hasClickedThisHand = false;
+    p.totalBet = 0;
   });
 
   // только активным (не на паузе и с фишками) включаем участие и раздаём карты
@@ -560,8 +568,10 @@ function startHand() {
     const player = table.players[playerIndex];
     if (!player) return;
     const blind = Math.min(player.stack, amount);
+    if (blind <= 0) return;
     player.stack -= blind;
     player.betThisStreet += blind;
+    player.totalBet = (player.totalBet || 0) + blind;
     table.streetPot += blind;
   }
 
@@ -628,13 +638,65 @@ function startNewStreet(newStage) {
   scheduleTurnTimer();
 }
 
+/**
+ * Окончание раунда торговли:
+ * - если остался один игрок — true
+ * - иначе у всех, кто ещё МОЖЕТ ходить (stack > 0), должно быть
+ *   betThisStreet === currentBet и hasActedThisStreet === true
+ * - игроки с stack === 0 считаются all-in и не мешают переходу
+ */
 function isBettingRoundComplete() {
   const actives = activePlayers();
   if (actives.length <= 1) return true;
-  return actives.every(p => p.hasActedThisStreet && p.betThisStreet === table.currentBet);
+
+  return actives.every(p => {
+    if (p.stack === 0) {
+      // all-in игрок не обязан уравнивать текущую ставку
+      return true;
+    }
+    return p.hasActedThisStreet && p.betThisStreet === table.currentBet;
+  });
 }
 
 // ================= Шоудаун и авто-следующая раздача =================
+
+// Построение основного и сайд-потов по totalBet всех игроков
+function buildSidePots() {
+  const contribs = table.players
+    .map(p => ({
+      id: p.id,
+      total: p.totalBet || 0,
+      hasFolded: p.hasFolded
+    }))
+    .filter(x => x.total > 0);
+
+  if (contribs.length === 0) return [];
+
+  contribs.sort((a, b) => a.total - b.total);
+
+  const pots = [];
+  let prev = 0;
+  let remaining = contribs.length;
+
+  for (let i = 0; i < contribs.length; i++) {
+    const level = contribs[i].total;
+    const portion = level - prev;
+    if (portion > 0) {
+      const seg = contribs.slice(i);
+      const eligibleIds = seg
+        .filter(c => !c.hasFolded)
+        .map(c => c.id);
+      const amount = portion * remaining;
+      if (amount > 0 && eligibleIds.length > 0) {
+        pots.push({ amount, eligibleIds });
+      }
+      prev = level;
+    }
+    remaining--;
+  }
+
+  return pots;
+}
 
 function scheduleNextHandIfNeeded() {
   clearNextHandTimer();
@@ -675,7 +737,7 @@ function goToShowdown() {
   clearTurnTimer();
   clearNextHandTimer();
 
-  collapseStreetPot();
+  collapseStreetPot(); // всё в mainPot (для совместимости с логами)
   table.stage = 'showdown';
   table.currentTurnIndex = null;
   table.turnDeadline = null;
@@ -687,24 +749,31 @@ function goToShowdown() {
 
 function resolveShowdown() {
   const contenders = activePlayers();
-  const totalPot = table.mainPot + table.streetPot;
+  const totalPotFromBets = getTotalPotFromBets();
 
   if (contenders.length === 0) {
     table.mainPot = 0;
     table.streetPot = 0;
+    table.players.forEach(p => { p.totalBet = 0; });
     table.lastLogMessage = 'Банк сгорел (нет активных игроков)';
     return;
   }
 
+  // Если остался один активный игрок — забирает весь банк (all-in/фолды и т.п.)
   if (contenders.length === 1) {
     const winner = contenders[0];
+    const totalPot = totalPotFromBets;
+
     winner.stack += totalPot;
     winner.message = `Вы выиграли без вскрытия, банк: ${totalPot}`;
+
     table.players.forEach(p => {
       if (p.id !== winner.id) {
         p.message = `Игрок ${winner.name} забрал банк без вскрытия`;
       }
+      p.totalBet = 0;
     });
+
     console.log(`Winner by fold: ${winner.name}, +${totalPot}`);
     table.mainPot = 0;
     table.streetPot = 0;
@@ -712,6 +781,7 @@ function resolveShowdown() {
     return;
   }
 
+  // Нормальный шоудаун с несколькими игроками -> считаем руки и сайд-поты
   const results = contenders.map(p => {
     const cards7 = [...p.hand, ...table.communityCards];
     const { score, hand } = evaluate7(cards7);
@@ -720,41 +790,93 @@ function resolveShowdown() {
     return { player: p, score, text, best5: hand, comboCards };
   });
 
-  const best = Math.max(...results.map(r => r.score));
-  const winners = results.filter(r => r.score === best);
-
-  const share = Math.floor(totalPot / winners.length);
-  const remainder = totalPot - share * winners.length;
-
-  winners.forEach(w => {
-    w.player.stack += share;
+  const handMap = {};
+  results.forEach(r => {
+    handMap[r.player.id] = r;
   });
-  if (remainder > 0) {
-    winners[0].player.stack += remainder;
+
+  const pots = buildSidePots();
+  const perPlayerWin = {};
+  const potSummaries = [];
+
+  let potIndex = 1;
+  for (const pot of pots) {
+    // eligibleIds — те, кто вложился в этот уровень и не фолднул
+    const eligibleResults = pot.eligibleIds
+      .map(id => handMap[id])
+      .filter(Boolean);
+
+    if (eligibleResults.length === 0) continue;
+
+    let bestScore = -1;
+    let winnersForPot = [];
+    for (const r of eligibleResults) {
+      if (r.score > bestScore) {
+        bestScore = r.score;
+        winnersForPot = [r];
+      } else if (r.score === bestScore) {
+        winnersForPot.push(r);
+      }
+    }
+
+    const share = Math.floor(pot.amount / winnersForPot.length);
+    let remainder = pot.amount - share * winnersForPot.length;
+
+    winnersForPot.forEach((r, idx) => {
+      const pid = r.player.id;
+      const gain = share + (idx === 0 && remainder > 0 ? remainder : 0);
+      perPlayerWin[pid] = (perPlayerWin[pid] || 0) + gain;
+      r.player.stack += gain;
+      if (idx === 0) remainder = 0;
+    });
+
+    const wDesc = winnersForPot
+      .map(w => {
+        const cardsStr = (w.comboCards || []).map(cardToString).join(' ');
+        return `${w.player.name || 'Игрок'} — ${w.text} (${cardsStr})`;
+      })
+      .join(', ');
+
+    potSummaries.push(`Пот ${potIndex} (${pot.amount}): ${wDesc}`);
+    potIndex++;
   }
 
-  const winnersDesc = winners
-    .map(w => {
-      const cardsStr = (w.comboCards || []).map(cardToString).join(' ');
-      return `${w.player.name || 'Игрок'} — ${w.text} (${cardsStr})`;
-    })
-    .join(', ');
+  const totalPot = pots.reduce((s, p) => s + p.amount, 0);
 
+  // Сообщения игрокам
   table.players.forEach(p => {
-    const winRec = winners.find(w => w.player.id === p.id);
-    if (winRec) {
-      const cardsStr = (winRec.comboCards || []).map(cardToString).join(' ');
-      const winBank = share + (winners[0].player.id === p.id ? remainder : 0);
-      p.message = `Вы выиграли с комбинацией: ${winRec.text} (${cardsStr}). Банк: ${winBank}`;
+    const winAmount = perPlayerWin[p.id] || 0;
+    const res = handMap[p.id]; // есть только у тех, кто дошёл до шоудауна
+
+    if (winAmount > 0) {
+      if (res) {
+        const cardsStr = (res.comboCards || []).map(cardToString).join(' ');
+        p.message = `Вы выиграли ${winAmount} фишек с комбинацией: ${res.text} (${cardsStr}).`;
+      } else {
+        p.message = `Вы выиграли ${winAmount} фишек.`;
+      }
+    } else if (res) {
+      const cardsStr = (res.comboCards || []).map(cardToString).join(' ');
+      p.message = `Вы проиграли с комбинацией: ${res.text} (${cardsStr}). Общий банк: ${totalPot}`;
     } else {
-      p.message = `Победитель(и): ${winnersDesc}. Общий банк: ${totalPot}`;
+      if (pots.length > 0) {
+        p.message = `Победители шоудауна: ${potSummaries.join('; ')}. Общий банк: ${totalPot}`;
+      } else {
+        p.message = 'Раздача завершена.';
+      }
     }
+
+    // обнуляем вклад после раздачи
+    p.totalBet = 0;
   });
 
-  console.log('Showdown winners:', winnersDesc, 'totalPot:', totalPot);
+  console.log('Showdown pots:', potSummaries.join(' | '), 'totalPot:', totalPot);
+
   table.mainPot = 0;
   table.streetPot = 0;
-  table.lastLogMessage = `Шоудаун. Победитель(и): ${winnersDesc}. Банк: ${totalPot}`;
+  table.lastLogMessage = pots.length > 0
+    ? `Шоудаун. ${potSummaries.join(' | ')}. Общий банк: ${totalPot}`
+    : `Шоудаун. Общий банк: ${totalPot}`;
 }
 
 // ================= Авто-переход улиц =================
@@ -935,11 +1057,12 @@ function handlePlayerAction(playerId, actionType) {
       return;
     }
 
-    const pay = Math.min(player.stack, toCall);
+    const pay = Math.min(player.stack, toCall); // short-stack all-in
     if (pay <= 0) return;
 
     player.stack -= pay;
     player.betThisStreet += pay;
+    player.totalBet = (player.totalBet || 0) + pay;
     table.streetPot += pay;
     player.hasActedThisStreet = true;
     table.lastLogMessage = `Игрок ${player.name} колл ${pay}`;
@@ -962,6 +1085,7 @@ function handlePlayerAction(playerId, actionType) {
 
       player.stack -= toBet;
       player.betThisStreet += toBet;
+      player.totalBet = (player.totalBet || 0) + toBet;
       table.streetPot += toBet;
 
       table.currentBet = player.betThisStreet;
@@ -982,14 +1106,16 @@ function handlePlayerAction(playerId, actionType) {
       // рейз на +10 поверх текущей ставки
       const targetBet = table.currentBet + minRaise;
       const toPay = targetBet - player.betThisStreet;
-      const pay = Math.min(player.stack, toPay);
+      const pay = Math.min(player.stack, toPay); // может быть all-in меньше целевого
       if (pay <= 0) return;
 
       player.stack -= pay;
       player.betThisStreet += pay;
+      player.totalBet = (player.totalBet || 0) + pay;
       table.streetPot += pay;
 
-      table.currentBet = player.betThisStreet;
+      // текущая ставка раунда — максимум по столу
+      table.currentBet = Math.max(table.currentBet, player.betThisStreet);
       table.minRaise = minRaise;
       player.hasActedThisStreet = true;
       table.lastLogMessage = `Игрок ${player.name} рейз до ${player.betThisStreet}`;
@@ -1031,7 +1157,8 @@ io.on('connection', (socket) => {
       hasActedThisStreet: false,
       message: null,
       isPaused: false,
-      hasClickedThisHand: false
+      hasClickedThisHand: false,
+      totalBet: 0
     };
 
     table.players.push(player);
