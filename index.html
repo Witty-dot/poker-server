@@ -152,6 +152,7 @@
       <div><strong>Блайнды:</strong> <span id="blinds">10 / 20</span></div>
       <div><strong>Текущая ставка раунда:</strong> <span id="currentBet">0</span></div>
       <div><strong>Ход игрока:</strong> <span id="currentTurn">—</span></div>
+      <div><strong>Таймер хода:</strong> <span id="turnTimer">—</span></div>
       <div style="margin-top:4px;">
         <strong>Борд:</strong>
         <span id="boardCards"><small>—</small></span>
@@ -207,6 +208,7 @@
     const blindsSpan = document.getElementById('blinds');
     const currentBetSpan = document.getElementById('currentBet');
     const currentTurnSpan = document.getElementById('currentTurn');
+    const turnTimerSpan = document.getElementById('turnTimer');
     const boardCardsSpan = document.getElementById('boardCards');
     const yourCardsDiv = document.getElementById('yourCards');
     const yourStackSpan = document.getElementById('yourStack');
@@ -238,6 +240,7 @@
         betBtn.disabled = true;
         playPauseBtn.disabled = true;
         hintBox.textContent = '';
+        turnTimerSpan.textContent = '—';
       });
 
       socket.on('gameState', (state) => {
@@ -329,6 +332,7 @@
       totalPotSpan.textContent = state.totalPot != null ? state.totalPot : 0;
       blindsSpan.textContent = (state.smallBlind || 0) + ' / ' + (state.bigBlind || 0);
       currentBetSpan.textContent = state.currentBet != null ? state.currentBet : 0;
+      turnTimerSpan.textContent = '—';
 
       if (state.stage === 'waiting') {
         const activeCount = (state.players || []).filter(p => !p.isPaused && p.stack > 0).length;
@@ -426,6 +430,13 @@
       callBtn.disabled = !canAct;
       betBtn.disabled = !canAct;
 
+      // таймер хода — только для меня и только когда могу ходить
+      if (canAct && typeof state.turnSecondsLeft === 'number') {
+        turnTimerSpan.textContent = state.turnSecondsLeft + ' сек';
+      } else {
+        turnTimerSpan.textContent = '—';
+      }
+
       if (!canAct) {
         if (stage !== 'waiting' && stage !== 'showdown' && currentPlayerName) {
           hintBox.textContent = 'Ход за игроком ' + currentPlayerName;
@@ -437,15 +448,18 @@
         return;
       }
 
+      const secs = (typeof state.turnSecondsLeft === 'number') ? state.turnSecondsLeft : null;
+      const prefix = secs != null ? `Ваш ход (осталось ${secs} сек). ` : 'Ваш ход. ';
+
       const toCall = currentBet - myBet;
       if (toCall <= 0) {
         callBtn.textContent = 'Чек';
         betBtn.textContent = 'Бет 10';
-        hintBox.textContent = 'Ваш ход. Можно чекнуть или поставить 10.';
+        hintBox.textContent = prefix + 'Можно чекнуть или поставить 10.';
       } else {
         callBtn.textContent = 'Колл ' + toCall;
         betBtn.textContent = 'Рейз до ' + (currentBet + 10);
-        hintBox.textContent = 'Ваш ход. Для колла нужно докинуть ' + toCall + ' фишек.';
+        hintBox.textContent = prefix + 'Для колла нужно докинуть ' + toCall + ' фишек.';
       }
     }
 
