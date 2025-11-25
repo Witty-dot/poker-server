@@ -140,6 +140,11 @@
     .turn-timer span {
       font-weight: 600;
     }
+    /* Красный таймер на последних секундах */
+    .turn-timer.red {
+      color: #ff6b6b;
+      font-weight: 700;
+    }
   </style>
 </head>
 <body>
@@ -190,6 +195,8 @@
       <strong>Ваши карты:</strong>
       <div id="yourCards"><small>—</small></div>
       <div><strong>Ваш стек:</strong> <span id="yourStack">—</span></div>
+      <div><strong>Ваша комбинация:</strong></div>
+      <div id="yourBestHand"><small>—</small></div>
       <div class="your-message" id="yourMessage"></div>
     </div>
 
@@ -240,6 +247,7 @@
     const yourCardsDiv = document.getElementById('yourCards');
     const yourStackSpan = document.getElementById('yourStack');
     const yourMessageDiv = document.getElementById('yourMessage');
+    const yourBestHandDiv = document.getElementById('yourBestHand');
     const playersList = document.getElementById('playersList');
 
     let lastState = null;
@@ -270,6 +278,7 @@
         hintBox.textContent = '';
         clearTurnTimerInterval();
         turnTimerBox.textContent = '';
+        turnTimerBox.classList.remove('red');
       });
 
       socket.on('gameState', (state) => {
@@ -361,6 +370,7 @@
       clearTurnTimerInterval();
       if (!deadlineMs) {
         turnTimerBox.textContent = '';
+        turnTimerBox.classList.remove('red');
         return;
       }
 
@@ -371,8 +381,14 @@
 
         if (remaining === 0) {
           turnTimerBox.textContent = 'Время на ход истекло.';
+          turnTimerBox.classList.remove('red');
           clearTurnTimerInterval();
         } else {
+          if (remaining <= 5) {
+            turnTimerBox.classList.add('red');
+          } else {
+            turnTimerBox.classList.remove('red');
+          }
           turnTimerBox.innerHTML =
             'Ваш ход. До авто-действия: <span>' + remaining + '</span> сек.';
         }
@@ -447,7 +463,9 @@
           if (meId && meId === p.id) {
             rowClasses.push('me');
           }
-          const rowClassAttr = rowClasses.length ? ' class="player-row ' + rowClasses.join(' ') + '"' : ' class="player-row"';
+          const rowClassAttr = rowClasses.length
+            ? ' class="player-row ' + rowClasses.join(' ') + '"'
+            : ' class="player-row"';
 
           const rowOpacity = p.isPaused ? 'opacity:0.5;' : '';
 
@@ -466,6 +484,7 @@
       yourStackSpan.textContent = '—';
       yourCardsDiv.innerHTML = '<small>—</small>';
       yourMessageDiv.textContent = '';
+      yourBestHandDiv.innerHTML = '<small>—</small>';
 
       let me = null;
       if (state.players && state.players.length > 0 && socket && socket.id) {
@@ -482,6 +501,19 @@
         }
         if (state.message) {
           yourMessageDiv.textContent = state.message;
+        }
+
+        // Лучшая комбинация игрока (название + ровно те карты, которые её образуют)
+        if (state.yourBestHandType && state.yourBestHandCards && state.yourBestHandCards.length > 0) {
+          const cardsHtml = state.yourBestHandCards
+            .map(cardToString)
+            .map(c => '<span class="pill">' + escapeHtml(c) + '</span>')
+            .join('');
+
+          yourBestHandDiv.innerHTML =
+            '<span style="color:#ffd86b;">' +
+            escapeHtml(state.yourBestHandType) +
+            '</span> → ' + cardsHtml;
         }
       }
 
@@ -509,6 +541,7 @@
       } else {
         clearTurnTimerInterval();
         turnTimerBox.textContent = '';
+        turnTimerBox.classList.remove('red');
       }
 
       // Подсказки-крупье
