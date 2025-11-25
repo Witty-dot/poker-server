@@ -145,6 +145,15 @@
       color: #ff6b6b;
       transform: scale(1.03);
     }
+
+    /* Карточки с возможностью подсветки комбо */
+    .pill-card {
+      position: relative;
+    }
+    .pill-card.combo {
+      border: 1px solid #ff4b4b;
+      box-shadow: 0 0 0 1px rgba(255, 75, 75, 0.7);
+    }
   </style>
 </head>
 <body>
@@ -443,10 +452,24 @@
         currentTurnSpan.textContent = '—';
       }
 
+      // ===== множество карт-комбо для подсветки =====
+      const comboSet = new Set();
+      if (Array.isArray(state.yourBestHandCards)) {
+        state.yourBestHandCards.forEach(c => {
+          const key = cardToString(c);
+          if (key) comboSet.add(key);
+        });
+      }
+
+      // Борд с подсветкой комбо-карт
       if (state.communityCards && state.communityCards.length > 0) {
         boardCardsSpan.innerHTML = state.communityCards
-          .map(cardToString)
-          .map(c => '<span class="pill">' + escapeHtml(c) + '</span>')
+          .map(card => {
+            const s = cardToString(card);
+            const isCombo = comboSet.has(s);
+            const cls = 'pill pill-card' + (isCombo ? ' combo' : '');
+            return '<span class="' + cls + '">' + escapeHtml(s) + '</span>';
+          })
           .join('');
       } else {
         boardCardsSpan.innerHTML = '<small>—</small>';
@@ -497,32 +520,38 @@
 
       if (me) {
         yourStackSpan.textContent = me.stack;
+
+        // Ваши карты с подсветкой, если они входят в комбо
         if (state.yourCards && state.yourCards.length > 0) {
           yourCardsDiv.innerHTML = state.yourCards
-            .map(cardToString)
-            .map(c => '<span class="pill">' + escapeHtml(c) + '</span>')
+            .map(card => {
+              const s = cardToString(card);
+              const isCombo = comboSet.has(s);
+              const cls = 'pill pill-card' + (isCombo ? ' combo' : '');
+              return '<span class="' + cls + '">' + escapeHtml(s) + '</span>';
+            })
             .join('');
         }
+
         if (state.message) {
           yourMessageDiv.textContent = state.message;
         }
 
         // ===== ТЕКУЩАЯ ЛУЧШАЯ КОМБИНАЦИЯ ИГРОКА =====
-        // Ожидаем, что сервер присылает:
-        // state.yourBestHand = { type: 'Пара', cards: [ {rank:'A',suit:'♠'}, ... ] }
-        if (state.yourBestHand && state.yourBestHand.type) {
-          const type = state.yourBestHand.type;
-          const cards = Array.isArray(state.yourBestHand.cards)
-            ? state.yourBestHand.cards
+        // Сервер отдаёт: yourBestHandType (строка) и yourBestHandCards (массив N карт комбо)
+        if (state.yourBestHandType) {
+          const type = state.yourBestHandType;
+          const cards = Array.isArray(state.yourBestHandCards)
+            ? state.yourBestHandCards
             : [];
 
           const cardsHtml = cards
             .map(cardToString)
-            .map(c => '<span class="pill">' + escapeHtml(c) + '</span>')
+            .map(c => '<span class="pill pill-card combo">' + escapeHtml(c) + '</span>')
             .join('');
 
           // здесь уже должно быть ровно N карт:
-          // Старшая карта → 1 карта
+          // Старшая карта → 1
           // Пара → 2, Сет → 3, Каре → 4, Стрит/Флэш/ФХ/Стрит-флэш → 5
           yourBestHandDiv.innerHTML =
             `<span style="color:#ffd86b;">${escapeHtml(type)}</span>` +
