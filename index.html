@@ -4,10 +4,9 @@
   <meta charset="utf-8" />
   <title>Poker Demo Table</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <!-- Socket.IO клиент с сервера -->
-  <script src="/socket.io/socket.io.js"></script>
-
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"
+          integrity="sha384-W4soF8b2W2TJFpV4gw3AaxkLi3oReSMqYyvyimKB9Y5AuC21KfvihQ6yKt8I4dEt"
+          crossorigin="anonymous"></script>
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -17,7 +16,7 @@
       color: #eee;
     }
     .card {
-      max-width: 520px;
+      max-width: 640px;
       margin: 0 auto;
       padding: 16px;
       background: #1b1b1b;
@@ -48,6 +47,7 @@
       background: #2d8cff;
       color: #fff;
       cursor: pointer;
+      white-space: nowrap;
     }
     button:disabled {
       background: #555;
@@ -57,13 +57,17 @@
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
+      margin-top: 4px;
     }
-    .table-info, .players, .you {
+    .table-info, .players, .you, .messages {
       margin-top: 12px;
       padding: 8px;
       background: #111;
       border-radius: 8px;
       font-size: 13px;
+    }
+    .players-list {
+      margin-top: 4px;
     }
     .player-row {
       display: flex;
@@ -77,6 +81,8 @@
     .player-main {
       display: flex;
       justify-content: space-between;
+      align-items: center;
+      gap: 4px;
     }
     small {
       color: #888;
@@ -89,24 +95,30 @@
       margin-right: 4px;
       font-size: 12px;
     }
+    .pill-btn {
+      border: 1px solid #555;
+    }
     .error {
       color: #ff6b6b;
       margin-top: 4px;
       font-size: 12px;
-      min-height: 16px;
     }
     .hint {
-      font-size: 12px;
-      color: #aaa;
       margin-top: 4px;
-      min-height: 14px;
+      font-size: 12px;
+      color: #ccc;
+    }
+    .your-message {
+      margin-top: 4px;
+      font-size: 12px;
+      color: #9ae6b4;
     }
   </style>
 </head>
 <body>
   <div class="card">
     <h1>Poker Demo Table</h1>
-    <p><small>Демо одного стола: подключение игроков, раздача карт, банк, стадии раздачи.</small></p>
+    <p><small>Демо одного стола: подключение игроков, раздача карт, банк, стадии раздачи, пауза.</small></p>
 
     <label for="name">Ваш ник:</label>
     <input id="name" type="text" placeholder="Player" />
@@ -114,17 +126,19 @@
     <div class="row">
       <button id="joinBtn">Подключиться</button>
       <button id="leaveBtn" disabled>Отключиться</button>
+      <button id="playPauseBtn" disabled>Пауза</button>
     </div>
 
     <div class="row">
       <button id="startBtn" disabled>Начать раздачу</button>
-      <button id="nextBtn" disabled>Следующая раздача (после шоудауна)</button>
+      <!-- nextBtn оставим как скрытую отладочную, если нужно — можно включить -->
+      <button id="nextBtn" style="display:none;" disabled>Следующая стадия</button>
     </div>
 
     <div class="row">
-      <button id="foldBtn" disabled>Fold</button>
-      <button id="callBtn" disabled>Check / Call</button>
-      <button id="betBtn" disabled>Bet / Raise 10</button>
+      <button id="foldBtn" disabled>Фолд</button>
+      <button id="callBtn" disabled>Чек / Колл</button>
+      <button id="betBtn" disabled>Бет / Рейз 10</button>
     </div>
 
     <div id="errorBox" class="error"></div>
@@ -132,11 +146,12 @@
 
     <div class="table-info">
       <div><strong>Стадия:</strong> <span id="stage">waiting</span></div>
-      <div><strong>Общий банк (пред. раунды):</strong> <span id="mainPot">0</span> фишек</div>
-      <div><strong>Банк текущего раунда:</strong> <span id="streetPot">0</span> фишек</div>
+      <div><strong>Событие:</strong> <span id="tableMessage">—</span></div>
+      <div><strong>Общий банк (пред. улицы):</strong> <span id="mainPot">0</span> фишек</div>
+      <div><strong>Банк текущей улицы:</strong> <span id="streetPot">0</span> фишек</div>
       <div><strong>Суммарный банк:</strong> <span id="totalPot">0</span> фишек</div>
-      <div><strong>Текущая ставка:</strong> <span id="currentBet">0</span></div>
       <div><strong>Блайнды:</strong> <span id="blinds">10 / 20</span></div>
+      <div><strong>Текущая ставка раунда:</strong> <span id="currentBet">0</span></div>
       <div><strong>Ход игрока:</strong> <span id="currentTurn">—</span></div>
       <div style="margin-top:4px;">
         <strong>Борд:</strong>
@@ -148,14 +163,18 @@
       <strong>Ваши карты:</strong>
       <div id="yourCards"><small>—</small></div>
       <div><strong>Ваш стек:</strong> <span id="yourStack">—</span></div>
-      <div id="yourMessage" style="margin-top:8px; color:#6df; font-size:14px; min-height:18px;"></div>
+      <div class="your-message" id="yourMessage"></div>
     </div>
 
     <div class="players">
       <strong>Игроки за столом:</strong>
-      <div id="playersList">
+      <div id="playersList" class="players-list">
         <small>Нет подключений.</small>
       </div>
+    </div>
+
+    <div class="messages">
+      <small>Логи сервера доступны по <code>/log</code> (для отладки).</small>
     </div>
   </div>
 
@@ -167,16 +186,19 @@
     const foldBtn = document.getElementById('foldBtn');
     const callBtn = document.getElementById('callBtn');
     const betBtn = document.getElementById('betBtn');
+    const playPauseBtn = document.getElementById('playPauseBtn');
     const nameInput = document.getElementById('name');
 
     const errorBox = document.getElementById('errorBox');
     const hintBox = document.getElementById('hintBox');
+
     const stageSpan = document.getElementById('stage');
+    const tableMessageSpan = document.getElementById('tableMessage');
     const mainPotSpan = document.getElementById('mainPot');
     const streetPotSpan = document.getElementById('streetPot');
     const totalPotSpan = document.getElementById('totalPot');
-    const currentBetSpan = document.getElementById('currentBet');
     const blindsSpan = document.getElementById('blinds');
+    const currentBetSpan = document.getElementById('currentBet');
     const currentTurnSpan = document.getElementById('currentTurn');
     const boardCardsSpan = document.getElementById('boardCards');
     const yourCardsDiv = document.getElementById('yourCards');
@@ -184,17 +206,17 @@
     const yourMessageDiv = document.getElementById('yourMessage');
     const playersList = document.getElementById('playersList');
 
-    const socket = io();
-    console.log('Socket.io init');
+    let lastState = null;
+
+    const socket = io(); // тот же хост, что и страница
 
     socket.on('connect', () => {
       console.log('Connected, id=', socket.id);
-      errorBox.textContent = 'Подключен к серверу';
+      errorBox.textContent = '';
     });
 
     socket.on('disconnect', () => {
       console.log('Disconnected');
-      errorBox.textContent = 'Отключен от сервера';
       joinBtn.disabled = false;
       leaveBtn.disabled = true;
       startBtn.disabled = true;
@@ -202,80 +224,118 @@
       foldBtn.disabled = true;
       callBtn.disabled = true;
       betBtn.disabled = true;
+      playPauseBtn.disabled = true;
+      hintBox.textContent = '';
     });
 
     socket.on('gameState', (state) => {
       console.log('gameState:', state);
+      lastState = state;
       renderState(state);
     });
 
     socket.on('errorMessage', (data) => {
       if (data && data.message) {
-        errorBox.textContent = 'Ошибка: ' + data.message;
+        errorBox.textContent = data.message;
       }
     });
 
+    // ===== Обработчики кнопок =====
+
     joinBtn.addEventListener('click', () => {
       const name = nameInput.value.trim() || 'Player';
-      errorBox.textContent = 'Подключаемся к столу...';
+      errorBox.textContent = '';
+      socket.connect();
       socket.emit('joinTable', { playerName: name });
       joinBtn.disabled = true;
       leaveBtn.disabled = false;
-      startBtn.disabled = false;
-      nextBtn.disabled = false;
     });
 
     leaveBtn.addEventListener('click', () => {
-      socket.disconnect();
+      console.log('leave click');
       errorBox.textContent = '';
-      joinBtn.disabled = false;
-      leaveBtn.disabled = true;
-      startBtn.disabled = true;
-      nextBtn.disabled = true;
-      foldBtn.disabled = true;
-      callBtn.disabled = true;
-      betBtn.disabled = true;
+      socket.disconnect();
     });
 
     startBtn.addEventListener('click', () => {
+      console.log('startHand click');
       errorBox.textContent = '';
       socket.emit('startHand');
     });
 
     nextBtn.addEventListener('click', () => {
+      console.log('nextStage click');
       errorBox.textContent = '';
       socket.emit('nextStage');
     });
 
     foldBtn.addEventListener('click', () => {
+      if (!lastState) return;
+      console.log('fold click');
       errorBox.textContent = '';
       socket.emit('action', { type: 'fold' });
     });
 
     callBtn.addEventListener('click', () => {
+      if (!lastState) return;
+      console.log('call/check click');
       errorBox.textContent = '';
       socket.emit('action', { type: 'call' });
     });
 
     betBtn.addEventListener('click', () => {
+      if (!lastState) return;
+      console.log('bet/raise click');
       errorBox.textContent = '';
       socket.emit('action', { type: 'bet' });
     });
+
+    playPauseBtn.addEventListener('click', () => {
+      if (!lastState) return;
+      const me = (lastState.players || []).find(p => p.id === socket.id);
+      if (!me) return;
+      const wantPlay = me.isPaused; // если сейчас на паузе — хотим играть
+      socket.emit('setPlaying', { playing: wantPlay });
+    });
+
+    // ===== Рендер состояния =====
 
     function renderState(state) {
       if (!state) return;
 
       stageSpan.textContent = state.stage || 'waiting';
+      tableMessageSpan.textContent = state.tableMessage || '—';
+
       mainPotSpan.textContent = state.mainPot != null ? state.mainPot : 0;
       streetPotSpan.textContent = state.streetPot != null ? state.streetPot : 0;
       totalPotSpan.textContent = state.totalPot != null ? state.totalPot : 0;
-      currentBetSpan.textContent = state.currentBet != null ? state.currentBet : 0;
       blindsSpan.textContent = (state.smallBlind || 0) + ' / ' + (state.bigBlind || 0);
+      currentBetSpan.textContent = state.currentBet != null ? state.currentBet : 0;
+
+      // кнопка начала раздачи — только в waiting и если 2+ активных
+      if (state.stage === 'waiting') {
+        const activeCount = (state.players || []).filter(p => !p.isPaused && p.stack > 0).length;
+        if (activeCount >= 2) {
+          startBtn.style.display = 'inline-block';
+          startBtn.disabled = false;
+        } else {
+          startBtn.style.display = 'inline-block';
+          startBtn.disabled = true;
+        }
+        nextBtn.style.display = 'none';
+      } else {
+        startBtn.style.display = 'none';
+        nextBtn.style.display = 'none';
+      }
 
       // текущий ход
+      let currentPlayerName = null;
       if (state.currentTurn && state.players) {
         const current = state.players.find(p => p.id === state.currentTurn);
-        currentTurnSpan.textContent = current ? (current.name || current.id) : '—';
+        if (current) {
+          currentPlayerName = current.name || current.id;
+        }
+        currentTurnSpan.textContent = currentPlayerName || '—';
       } else {
         currentTurnSpan.textContent = '—';
       }
@@ -290,16 +350,21 @@
         boardCardsSpan.innerHTML = '<small>—</small>';
       }
 
-      // список игроков
+      // игроки
       if (!state.players || state.players.length === 0) {
         playersList.innerHTML = '<small>Нет подключений.</small>';
       } else {
         playersList.innerHTML = state.players.map(p => {
+          const isButton = state.buttonPlayerId && state.buttonPlayerId === p.id;
+          const btn = isButton ? '<span class="pill pill-btn">BTN</span> ' : '';
+          const pausedLabel = p.isPaused ? ' (на паузе)' : '';
+          const rowStyle = p.isPaused ? 'opacity:0.5;' : '';
+          const inHandLabel = p.inHand ? ' (в игре)' : '';
           return `
-            <div class="player-row">
+            <div class="player-row" style="${rowStyle}">
               <div class="player-main">
-                <span>#${escapeHtml(p.id)} ${escapeHtml(p.name || '')}</span>
-                <span>${p.stack} фишек${p.inHand ? ' (в игре)' : ''}</span>
+                <span>${btn}${escapeHtml(p.name || p.id)}${pausedLabel}</span>
+                <span>${p.stack} фишек${inHandLabel}</span>
               </div>
               <small>Ставка в этом раунде: ${p.betThisStreet || 0}</small>
             </div>
@@ -307,11 +372,10 @@
         }).join('');
       }
 
-      // свои карты / стек / сообщения
+      // свои карты/стек/сообщение
       yourStackSpan.textContent = '—';
       yourCardsDiv.innerHTML = '<small>—</small>';
       yourMessageDiv.textContent = '';
-      hintBox.textContent = '';
 
       let me = null;
       if (state.players && state.players.length > 0 && socket.id) {
@@ -326,53 +390,59 @@
             .map(c => '<span class="pill">' + escapeHtml(c) + '</span>')
             .join('');
         }
+        if (state.message) {
+          yourMessageDiv.textContent = state.message;
+        }
       }
 
-      const isMyTurn = !!(state.yourTurn);
+      // кнопка Играть/Пауза
+      if (me) {
+        playPauseBtn.disabled = false;
+        playPauseBtn.textContent = me.isPaused ? 'Играть' : 'Пауза';
+      } else {
+        playPauseBtn.disabled = true;
+        playPauseBtn.textContent = 'Пауза';
+      }
+
+      // логика ходов / подсказок
+      const isMyTurn = !!state.yourTurn;
       const stage = state.stage;
       const currentBet = state.currentBet || 0;
       const myBet = me ? (me.betThisStreet || 0) : 0;
+      const canAct = isMyTurn && me && me.inHand && !me.isPaused && !['waiting', 'showdown'].includes(stage);
 
-      // подсказка / сообщение
-      if (state.message) {
-        yourMessageDiv.textContent = state.message;
-      } else if (isMyTurn && stage !== 'showdown' && stage !== 'waiting' && me && me.inHand) {
-        yourMessageDiv.textContent = 'Ваш ход';
-      } else {
-        yourMessageDiv.textContent = '';
-      }
-
-      const canAct = isMyTurn && me && me.inHand && !['waiting', 'showdown'].includes(stage);
       foldBtn.disabled = !canAct;
       callBtn.disabled = !canAct;
       betBtn.disabled = !canAct;
 
       if (!canAct) {
-        hintBox.textContent = '';
+        if (stage !== 'waiting' && stage !== 'showdown' && currentPlayerName) {
+          hintBox.textContent = 'Ход за игроком ' + currentPlayerName;
+        } else if (stage === 'showdown') {
+          hintBox.textContent = 'Раздача завершена (шоудаун / победа без вскрытия)';
+        } else {
+          hintBox.textContent = '';
+        }
         return;
       }
 
-      // логика подписей кнопок:
-      if (currentBet === 0) {
-        // ещё никто не ставил: можно чекнуть или поставить
-        callBtn.textContent = 'Check';
-        betBtn.textContent = 'Bet 10';
-        hintBox.textContent = 'Ставок в этом раунде нет: можете Check или Bet 10.';
+      // здесь точно наш ход
+      // определяем, нужно ли коллировать или можно чекнуть
+      const toCall = currentBet - myBet;
+      if (toCall <= 0) {
+        // чек / бет
+        callBtn.textContent = 'Чек';
+        betBtn.textContent = 'Бет 10';
+        hintBox.textContent = 'Ваш ход. Можно чекнуть или поставить 10.';
       } else {
-        const diff = currentBet - myBet;
-        if (diff <= 0) {
-          // вы уже уравняли: можно чекнуть (пропуск) или рейзнуть
-          callBtn.textContent = 'Check';
-          betBtn.textContent = 'Raise 10';
-          hintBox.textContent = 'Вы уже уравняли ставку: можете Check или Raise 10.';
-        } else {
-          // вы позади: нужно докинуть diff для колла или сделать рейз
-          callBtn.textContent = 'Call ' + diff;
-          betBtn.textContent = 'Raise 10';
-          hintBox.textContent = 'Для колла нужно докинуть: ' + diff + '. Можно Call или Raise 10.';
-        }
+        // колл / рейз
+        callBtn.textContent = 'Колл ' + toCall;
+        betBtn.textContent = 'Рейз до ' + (currentBet + 10);
+        hintBox.textContent = 'Ваш ход. Для колла нужно докинуть ' + toCall + ' фишек.';
       }
     }
+
+    // ===== Вспомогательные функции =====
 
     function cardToString(card) {
       if (!card) return '';
