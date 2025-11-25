@@ -13,7 +13,26 @@ app.use(express.json());
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
+// Простой просмотр лога: текстом, чтобы можно было скопировать в чат
+app.get('/log', (req, res) => {
+  if (!debugLog.length) {
+    return res.type('text/plain').send('Лог пустой');
+  }
 
+  const text = debugLog.map(s => {
+    const lines = [];
+    lines.push(`[${s.ts}] ${s.reason}`);
+    lines.push(`  stage=${s.stage}, mainPot=${s.mainPot}, streetPot=${s.streetPot}, totalPot=${s.totalPot}`);
+    s.players.forEach(pl => {
+      lines.push(
+        `  - ${pl.name || pl.id}: stack=${pl.stack}, betThisStreet=${pl.betThisStreet}, inHand=${pl.inHand}, folded=${pl.hasFolded}`
+      );
+    });
+    return lines.join('\n');
+  }).join('\n\n');
+
+  res.type('text/plain').send(text);
+});
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -212,7 +231,40 @@ let table = {
   minRaise: 10,         // шаг рейза (для демо фикс 10)
   currentTurnIndex: null
 };
+// ================= Debug-лог для анализа раздач =================
 
+const debugLog = [];
+
+/**
+ * Снимаем снапшот стола и пишем в лог.
+ * reason — строка "почему" мы делаем снимок (после действия, после шоудауна и т.п.)
+ */
+function pushSnapshot(reason) {
+  const snapshot = {
+    ts: new Date().toISOString(),
+    reason,
+    stage: table.stage,
+    mainPot: table.mainPot,
+    streetPot: table.streetPot,
+    totalPot: table.mainPot + table.streetPot,
+    players: table.players.map(p => ({
+      id: p.id,
+      name: p.name,
+      stack: p.stack,
+      betThisStreet: p.betThisStreet,
+      inHand: p.inHand,
+      hasFolded: p.hasFolded
+    }))
+  };
+
+  debugLog.push(snapshot);
+  if (debugLog.length > 200) {
+    debugLog.shift(); // держим последние 200 шагов
+  }
+
+  // Одновременно пишем в консоль (полезно смотреть логи Render)
+  console.log('[SNAPSHOT]', reason, JSON.stringify(snapshot));
+}
 function activePlayers() {
   return table.players.filter(p => p.inHand && !p.hasFolded);
 }
