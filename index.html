@@ -321,6 +321,7 @@
 
     let lastState = null;
     let turnTimerInterval = null;  // интервал обновления обратного отсчёта
+    let betButtonMode = 'bet';     // 'bet' | 'allin' | 'disabled'
 
     if (typeof io === 'undefined') {
       errorBox.textContent = 'Ошибка: socket.io клиент не загрузился (io is undefined).';
@@ -414,14 +415,20 @@
 
     betBtn.addEventListener('click', () => {
       if (!lastState) return;
-      console.log('bet/raise click');
+      console.log('bet/raise/allin click');
       errorBox.textContent = '';
-      if (socket) socket.emit('action', { type: 'bet' });
+      if (!socket) return;
+      if (betButtonMode === 'allin') {
+        socket.emit('action', { type: 'allin' });
+      } else if (betButtonMode === 'bet') {
+        socket.emit('action', { type: 'bet' });
+      }
+      // если disabled — ничего не шлём
     });
 
     allinBtn.addEventListener('click', () => {
       if (!lastState) return;
-      console.log('all-in click');
+      console.log('allin click');
       errorBox.textContent = '';
       if (socket) socket.emit('action', { type: 'allin' });
     });
@@ -653,14 +660,21 @@
       const isMyTurn = !!state.yourTurn;
       const stage = state.stage;
       const currentBet = state.currentBet || 0;
+      const minRaise = state.minRaise || 10;
       const myBet = me ? (me.betThisStreet || 0) : 0;
+      const myStack = me ? (me.stack || 0) : 0;
+      const toCall = Math.max(0, currentBet - myBet);
+      const maxTotalBet = myBet + myStack; // максимум, сколько можем иметь в банке на этой улице
+
       const canAct =
-        isMyTurn && me && me.inHand && !me.isPaused && !['waiting', 'showdown'].includes(stage);
+        isMyTurn && me && me.inHand && !me.isPaused && !['waiting', 'showdown'].includes(stage) && myStack >= 0;
+
+      betButtonMode = 'disabled';
 
       foldBtn.disabled = !canAct;
       callBtn.disabled = !canAct;
       betBtn.disabled = !canAct;
-      allinBtn.disabled = !canAct || !me || me.stack <= 0;
+      allinBtn.disabled = !canAct || myStack <= 0;
 
       // таймер: только если наш ход и есть дедлайн
       if (canAct && state.turnDeadline) {
@@ -671,7 +685,7 @@
         turnTimerBox.classList.remove('turn-timer-danger');
       }
 
-      // Подсказки-крупье
+      // Подсказки-крупье и надписи на кнопках
       if (!canAct) {
         if (stage !== 'waiting' && stage !== 'showdown' && currentPlayerName) {
           hintBox.textContent = 'Ход за игроком ' + currentPlayerName + '. Ожидаем его решение.';
@@ -683,15 +697,59 @@
         return;
       }
 
-      const toCall = currentBet - myBet;
-      if (toCall <= 0) {
+      // Алл-ин кнопка всегда просто "Алл-ин <stack>"
+      allinBtn.textContent = 'Олл-ин ' + myStack;
+
+      if (toCall === 0) {
+        // Никто ещё не ставил
         callBtn.textContent = 'Чек';
-        betBtn.textContent = 'Бет 10';
-        hintBox.textContent = 'Ваш ход. Можно чекнуть, поставить 10 фишек или уйти в олл-ин.';
+
+        if (myStack <= 0) {
+          betBtn.disabled = true;
+          betButtonMode = 'disabled';
+          hintBox.textContent = 'Ваш ход. Фишек нет, возможен только чек.';
+        } else {
+          const firstBet = Math.min(minRaise, myStack);
+          betBtn.disabled = firstBet <= 0;
+          betBtn.textContent = 'Бет ' + firstBet;
+          betButtonMode = 'bet';
+          hintBox.textContent =
+            'Ваш ход. Можно чекнуть, сделать ставку ' + firstBet + ' фишек или сразу уйти в олл-ин.';
+        }
       } else {
-        callBtn.textContent = 'Колл ' + toCall;
-        betBtn.textContent = 'Рейз до ' + (currentBet + 10);
-        hintBox.textContent = 'Ваш ход. Можно заколлировать ' + toCall + ' фишек, повысить на 10 или уйти в олл-ин.';
+        // Есть ставка перед нами
+        if (myStack <= toCall) {
+          // можем только коллить и это сразу олл-ин
+          callBtn.textContent = 'Колл (алл-ин) ' + myStack;
+          betBtn.disabled = true;
+          betButtonMode = 'disabled';
+          hintBox.textContent =
+            'Ваш ход. Для продолжения раздачи требуется олл-ин колл на ' + myStack + ' фишек.';
+        } else {
+          callBtn.textContent = 'Колл ' + toCall;
+          const fullRaiseTo = currentBet + minRaise;
+
+          if (maxTotalBet <= currentBet) {
+            // теоретически не должны сюда попасть — мы уже проверили myStack > toCall,
+            // но на всякий случай
+            betBtn.disabled = true;
+            betButtonMode = 'disabled';
+          } else if (maxTotalBet < fullRaiseTo) {
+            // можем заколлить, но не дотягиваем до полного рейза — кнопка рейза превращается в Алл-ин
+            betBtn.disabled = false;
+            betBtn.textContent = 'Олл-ин ' + myStack;
+            betButtonMode = 'allin';
+          } else {
+            // нормальный рейз на мин-степ
+            betBtn.disabled = false;
+            betBtn.textContent = 'Рейз до ' + fullRaiseTo;
+            betButtonMode = 'bet';
+          }
+
+          hintBox.textContent =
+            'Ваш ход. Можно заколлить ' + toCall +
+            ' фишек, сделать рейз (если хватает фишек) или сразу уйти в олл-ин.';
+        }
       }
     }
 
