@@ -4,9 +4,8 @@
   <meta charset="utf-8" />
   <title>Poker Demo Table</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"
-          integrity="sha384-W4soF8b2W2TJFpV4gw3AaxkLi3oReSMqYyvyimKB9Y5AuC21KfvihQ6yKt8I4dEt"
-          crossorigin="anonymous"></script>
+  <!-- Упрощённое подключение socket.io, без integrity -->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -102,6 +101,7 @@
       color: #ff6b6b;
       margin-top: 4px;
       font-size: 12px;
+      white-space: pre-wrap;
     }
     .hint {
       margin-top: 4px;
@@ -131,7 +131,6 @@
 
     <div class="row">
       <button id="startBtn" disabled>Начать раздачу</button>
-      <!-- nextBtn оставим как скрытую отладочную, если нужно — можно включить -->
       <button id="nextBtn" style="display:none;" disabled>Следующая стадия</button>
     </div>
 
@@ -179,6 +178,14 @@
   </div>
 
   <script>
+    // Поймаем любые ошибки JS и покажем их в errorBox
+    window.onerror = function(msg, url, line, col, err) {
+      const box = document.getElementById('errorBox');
+      box.textContent = 'JS error: ' + msg + ' @ ' + line + ':' + col;
+    };
+
+    console.log('Client script loaded');
+
     const joinBtn = document.getElementById('joinBtn');
     const leaveBtn = document.getElementById('leaveBtn');
     const startBtn = document.getElementById('startBtn');
@@ -208,41 +215,52 @@
 
     let lastState = null;
 
-    const socket = io(); // тот же хост, что и страница
+    if (typeof io === 'undefined') {
+      errorBox.textContent = 'Ошибка: socket.io клиент не загрузился (io is undefined).';
+    }
 
-    socket.on('connect', () => {
-      console.log('Connected, id=', socket.id);
-      errorBox.textContent = '';
-    });
+    const socket = (typeof io !== 'undefined') ? io() : null;
 
-    socket.on('disconnect', () => {
-      console.log('Disconnected');
-      joinBtn.disabled = false;
-      leaveBtn.disabled = true;
-      startBtn.disabled = true;
-      nextBtn.disabled = true;
-      foldBtn.disabled = true;
-      callBtn.disabled = true;
-      betBtn.disabled = true;
-      playPauseBtn.disabled = true;
-      hintBox.textContent = '';
-    });
+    if (socket) {
+      socket.on('connect', () => {
+        console.log('Connected, id=', socket.id);
+        errorBox.textContent = '';
+      });
 
-    socket.on('gameState', (state) => {
-      console.log('gameState:', state);
-      lastState = state;
-      renderState(state);
-    });
+      socket.on('disconnect', () => {
+        console.log('Disconnected');
+        joinBtn.disabled = false;
+        leaveBtn.disabled = true;
+        startBtn.disabled = true;
+        nextBtn.disabled = true;
+        foldBtn.disabled = true;
+        callBtn.disabled = true;
+        betBtn.disabled = true;
+        playPauseBtn.disabled = true;
+        hintBox.textContent = '';
+      });
 
-    socket.on('errorMessage', (data) => {
-      if (data && data.message) {
-        errorBox.textContent = data.message;
-      }
-    });
+      socket.on('gameState', (state) => {
+        console.log('gameState:', state);
+        lastState = state;
+        renderState(state);
+      });
+
+      socket.on('errorMessage', (data) => {
+        if (data && data.message) {
+          errorBox.textContent = data.message;
+        }
+      });
+    }
 
     // ===== Обработчики кнопок =====
 
     joinBtn.addEventListener('click', () => {
+      console.log('joinBtn clicked');
+      if (!socket) {
+        errorBox.textContent = 'Нет соединения с сервером (socket не инициализирован).';
+        return;
+      }
       const name = nameInput.value.trim() || 'Player';
       errorBox.textContent = '';
       socket.connect();
@@ -254,44 +272,44 @@
     leaveBtn.addEventListener('click', () => {
       console.log('leave click');
       errorBox.textContent = '';
-      socket.disconnect();
+      if (socket) socket.disconnect();
     });
 
     startBtn.addEventListener('click', () => {
       console.log('startHand click');
       errorBox.textContent = '';
-      socket.emit('startHand');
+      if (socket) socket.emit('startHand');
     });
 
     nextBtn.addEventListener('click', () => {
       console.log('nextStage click');
       errorBox.textContent = '';
-      socket.emit('nextStage');
+      if (socket) socket.emit('nextStage');
     });
 
     foldBtn.addEventListener('click', () => {
       if (!lastState) return;
       console.log('fold click');
       errorBox.textContent = '';
-      socket.emit('action', { type: 'fold' });
+      if (socket) socket.emit('action', { type: 'fold' });
     });
 
     callBtn.addEventListener('click', () => {
       if (!lastState) return;
       console.log('call/check click');
       errorBox.textContent = '';
-      socket.emit('action', { type: 'call' });
+      if (socket) socket.emit('action', { type: 'call' });
     });
 
     betBtn.addEventListener('click', () => {
       if (!lastState) return;
       console.log('bet/raise click');
       errorBox.textContent = '';
-      socket.emit('action', { type: 'bet' });
+      if (socket) socket.emit('action', { type: 'bet' });
     });
 
     playPauseBtn.addEventListener('click', () => {
-      if (!lastState) return;
+      if (!lastState || !socket) return;
       const me = (lastState.players || []).find(p => p.id === socket.id);
       if (!me) return;
       const wantPlay = me.isPaused; // если сейчас на паузе — хотим играть
@@ -312,7 +330,6 @@
       blindsSpan.textContent = (state.smallBlind || 0) + ' / ' + (state.bigBlind || 0);
       currentBetSpan.textContent = state.currentBet != null ? state.currentBet : 0;
 
-      // кнопка начала раздачи — только в waiting и если 2+ активных
       if (state.stage === 'waiting') {
         const activeCount = (state.players || []).filter(p => !p.isPaused && p.stack > 0).length;
         if (activeCount >= 2) {
@@ -328,7 +345,6 @@
         nextBtn.style.display = 'none';
       }
 
-      // текущий ход
       let currentPlayerName = null;
       if (state.currentTurn && state.players) {
         const current = state.players.find(p => p.id === state.currentTurn);
@@ -340,7 +356,6 @@
         currentTurnSpan.textContent = '—';
       }
 
-      // борд
       if (state.communityCards && state.communityCards.length > 0) {
         boardCardsSpan.innerHTML = state.communityCards
           .map(cardToString)
@@ -350,7 +365,6 @@
         boardCardsSpan.innerHTML = '<small>—</small>';
       }
 
-      // игроки
       if (!state.players || state.players.length === 0) {
         playersList.innerHTML = '<small>Нет подключений.</small>';
       } else {
@@ -372,13 +386,12 @@
         }).join('');
       }
 
-      // свои карты/стек/сообщение
       yourStackSpan.textContent = '—';
       yourCardsDiv.innerHTML = '<small>—</small>';
       yourMessageDiv.textContent = '';
 
       let me = null;
-      if (state.players && state.players.length > 0 && socket.id) {
+      if (state.players && state.players.length > 0 && socket && socket.id) {
         me = state.players.find(p => p.id === socket.id);
       }
 
@@ -395,7 +408,6 @@
         }
       }
 
-      // кнопка Играть/Пауза
       if (me) {
         playPauseBtn.disabled = false;
         playPauseBtn.textContent = me.isPaused ? 'Играть' : 'Пауза';
@@ -404,7 +416,6 @@
         playPauseBtn.textContent = 'Пауза';
       }
 
-      // логика ходов / подсказок
       const isMyTurn = !!state.yourTurn;
       const stage = state.stage;
       const currentBet = state.currentBet || 0;
@@ -426,23 +437,17 @@
         return;
       }
 
-      // здесь точно наш ход
-      // определяем, нужно ли коллировать или можно чекнуть
       const toCall = currentBet - myBet;
       if (toCall <= 0) {
-        // чек / бет
         callBtn.textContent = 'Чек';
         betBtn.textContent = 'Бет 10';
         hintBox.textContent = 'Ваш ход. Можно чекнуть или поставить 10.';
       } else {
-        // колл / рейз
         callBtn.textContent = 'Колл ' + toCall;
         betBtn.textContent = 'Рейз до ' + (currentBet + 10);
         hintBox.textContent = 'Ваш ход. Для колла нужно докинуть ' + toCall + ' фишек.';
       }
     }
-
-    // ===== Вспомогательные функции =====
 
     function cardToString(card) {
       if (!card) return '';
