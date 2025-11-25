@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <title>Poker Demo Table</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Упрощённое подключение socket.io, без integrity -->
+  <!-- Упрощённое подключение socket.io -->
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <style>
     body {
@@ -136,14 +136,14 @@
       margin-top: 4px;
       font-size: 12px;
       color: #ffd86b;
+      transition: color 0.15s, transform 0.1s;
     }
     .turn-timer span {
       font-weight: 600;
     }
-    /* Красный таймер на последних секундах */
-    .turn-timer.red {
+    .turn-timer-danger {
       color: #ff6b6b;
-      font-weight: 700;
+      transform: scale(1.03);
     }
   </style>
 </head>
@@ -195,8 +195,12 @@
       <strong>Ваши карты:</strong>
       <div id="yourCards"><small>—</small></div>
       <div><strong>Ваш стек:</strong> <span id="yourStack">—</span></div>
-      <div><strong>Ваша комбинация:</strong></div>
-      <div id="yourBestHand"><small>—</small></div>
+
+      <div style="margin-top:6px;"><strong>Ваша текущая комбинация:</strong></div>
+      <div id="yourBestHand" style="margin-top:4px;">
+        <small>—</small>
+      </div>
+
       <div class="your-message" id="yourMessage"></div>
     </div>
 
@@ -278,7 +282,7 @@
         hintBox.textContent = '';
         clearTurnTimerInterval();
         turnTimerBox.textContent = '';
-        turnTimerBox.classList.remove('red');
+        turnTimerBox.classList.remove('turn-timer-danger');
       });
 
       socket.on('gameState', (state) => {
@@ -368,9 +372,10 @@
 
     function startTurnTimer(deadlineMs) {
       clearTurnTimerInterval();
+      turnTimerBox.classList.remove('turn-timer-danger');
+
       if (!deadlineMs) {
         turnTimerBox.textContent = '';
-        turnTimerBox.classList.remove('red');
         return;
       }
 
@@ -381,13 +386,13 @@
 
         if (remaining === 0) {
           turnTimerBox.textContent = 'Время на ход истекло.';
-          turnTimerBox.classList.remove('red');
+          turnTimerBox.classList.add('turn-timer-danger');
           clearTurnTimerInterval();
         } else {
           if (remaining <= 5) {
-            turnTimerBox.classList.add('red');
+            turnTimerBox.classList.add('turn-timer-danger');
           } else {
-            turnTimerBox.classList.remove('red');
+            turnTimerBox.classList.remove('turn-timer-danger');
           }
           turnTimerBox.innerHTML =
             'Ваш ход. До авто-действия: <span>' + remaining + '</span> сек.';
@@ -463,9 +468,8 @@
           if (meId && meId === p.id) {
             rowClasses.push('me');
           }
-          const rowClassAttr = rowClasses.length
-            ? ' class="player-row ' + rowClasses.join(' ') + '"'
-            : ' class="player-row"';
+          const rowClassAttr =
+            rowClasses.length ? ' class="player-row ' + rowClasses.join(' ') + '"' : ' class="player-row"';
 
           const rowOpacity = p.isPaused ? 'opacity:0.5;' : '';
 
@@ -503,17 +507,26 @@
           yourMessageDiv.textContent = state.message;
         }
 
-        // Лучшая комбинация игрока (название + ровно те карты, которые её образуют)
-        if (state.yourBestHandType && state.yourBestHandCards && state.yourBestHandCards.length > 0) {
-          const cardsHtml = state.yourBestHandCards
+        // ===== ТЕКУЩАЯ ЛУЧШАЯ КОМБИНАЦИЯ ИГРОКА =====
+        // Ожидаем, что сервер присылает:
+        // state.yourBestHand = { type: 'Пара', cards: [ {rank:'A',suit:'♠'}, ... ] }
+        if (state.yourBestHand && state.yourBestHand.type) {
+          const type = state.yourBestHand.type;
+          const cards = Array.isArray(state.yourBestHand.cards)
+            ? state.yourBestHand.cards
+            : [];
+
+          const cardsHtml = cards
             .map(cardToString)
             .map(c => '<span class="pill">' + escapeHtml(c) + '</span>')
             .join('');
 
+          // здесь уже должно быть ровно N карт:
+          // Старшая карта → 1 карта
+          // Пара → 2, Сет → 3, Каре → 4, Стрит/Флэш/ФХ/Стрит-флэш → 5
           yourBestHandDiv.innerHTML =
-            '<span style="color:#ffd86b;">' +
-            escapeHtml(state.yourBestHandType) +
-            '</span> → ' + cardsHtml;
+            `<span style="color:#ffd86b;">${escapeHtml(type)}</span>` +
+            (cardsHtml ? ' → ' + cardsHtml : '');
         }
       }
 
@@ -529,7 +542,8 @@
       const stage = state.stage;
       const currentBet = state.currentBet || 0;
       const myBet = me ? (me.betThisStreet || 0) : 0;
-      const canAct = isMyTurn && me && me.inHand && !me.isPaused && !['waiting', 'showdown'].includes(stage);
+      const canAct =
+        isMyTurn && me && me.inHand && !me.isPaused && !['waiting', 'showdown'].includes(stage);
 
       foldBtn.disabled = !canAct;
       callBtn.disabled = !canAct;
@@ -541,7 +555,7 @@
       } else {
         clearTurnTimerInterval();
         turnTimerBox.textContent = '';
-        turnTimerBox.classList.remove('red');
+        turnTimerBox.classList.remove('turn-timer-danger');
       }
 
       // Подсказки-крупье
