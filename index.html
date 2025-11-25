@@ -152,7 +152,6 @@
       <div><strong>Блайнды:</strong> <span id="blinds">10 / 20</span></div>
       <div><strong>Текущая ставка раунда:</strong> <span id="currentBet">0</span></div>
       <div><strong>Ход игрока:</strong> <span id="currentTurn">—</span></div>
-      <div><strong>Таймер хода:</strong> <span id="turnTimer">—</span></div>
       <div style="margin-top:4px;">
         <strong>Борд:</strong>
         <span id="boardCards"><small>—</small></span>
@@ -163,6 +162,7 @@
       <strong>Ваши карты:</strong>
       <div id="yourCards"><small>—</small></div>
       <div><strong>Ваш стек:</strong> <span id="yourStack">—</span></div>
+      <div><strong>Таймер хода:</strong> <span id="turnTimer">—</span></div>
       <div class="your-message" id="yourMessage"></div>
     </div>
 
@@ -208,14 +208,44 @@
     const blindsSpan = document.getElementById('blinds');
     const currentBetSpan = document.getElementById('currentBet');
     const currentTurnSpan = document.getElementById('currentTurn');
-    const turnTimerSpan = document.getElementById('turnTimer');
     const boardCardsSpan = document.getElementById('boardCards');
     const yourCardsDiv = document.getElementById('yourCards');
     const yourStackSpan = document.getElementById('yourStack');
     const yourMessageDiv = document.getElementById('yourMessage');
     const playersList = document.getElementById('playersList');
+    const turnTimerSpan = document.getElementById('turnTimer');
 
     let lastState = null;
+    let turnCountdownInterval = null;
+
+    function stopTurnCountdown() {
+      if (turnCountdownInterval) {
+        clearInterval(turnCountdownInterval);
+        turnCountdownInterval = null;
+      }
+      if (turnTimerSpan) {
+        turnTimerSpan.textContent = '—';
+      }
+    }
+
+    function startTurnCountdown(deadline) {
+      stopTurnCountdown();
+      if (!deadline || !turnTimerSpan) return;
+
+      function tick() {
+        const msLeft = deadline - Date.now();
+        if (msLeft <= 0) {
+          turnTimerSpan.textContent = '0 c';
+          stopTurnCountdown();
+          return;
+        }
+        const seconds = Math.ceil(msLeft / 1000);
+        turnTimerSpan.textContent = seconds + ' c';
+      }
+
+      tick();
+      turnCountdownInterval = setInterval(tick, 500);
+    }
 
     if (typeof io === 'undefined') {
       errorBox.textContent = 'Ошибка: socket.io клиент не загрузился (io is undefined).';
@@ -240,7 +270,7 @@
         betBtn.disabled = true;
         playPauseBtn.disabled = true;
         hintBox.textContent = '';
-        turnTimerSpan.textContent = '—';
+        stopTurnCountdown();
       });
 
       socket.on('gameState', (state) => {
@@ -332,7 +362,6 @@
       totalPotSpan.textContent = state.totalPot != null ? state.totalPot : 0;
       blindsSpan.textContent = (state.smallBlind || 0) + ' / ' + (state.bigBlind || 0);
       currentBetSpan.textContent = state.currentBet != null ? state.currentBet : 0;
-      turnTimerSpan.textContent = '—';
 
       if (state.stage === 'waiting') {
         const activeCount = (state.players || []).filter(p => !p.isPaused && p.stack > 0).length;
@@ -430,11 +459,11 @@
       callBtn.disabled = !canAct;
       betBtn.disabled = !canAct;
 
-      // таймер хода — только для меня и только когда могу ходить
-      if (canAct && typeof state.turnSecondsLeft === 'number') {
-        turnTimerSpan.textContent = state.turnSecondsLeft + ' сек';
+      // управление таймером хода — только для текущего игрока
+      if (me && state.yourTurn && state.turnDeadline) {
+        startTurnCountdown(state.turnDeadline);
       } else {
-        turnTimerSpan.textContent = '—';
+        stopTurnCountdown();
       }
 
       if (!canAct) {
@@ -448,18 +477,15 @@
         return;
       }
 
-      const secs = (typeof state.turnSecondsLeft === 'number') ? state.turnSecondsLeft : null;
-      const prefix = secs != null ? `Ваш ход (осталось ${secs} сек). ` : 'Ваш ход. ';
-
       const toCall = currentBet - myBet;
       if (toCall <= 0) {
         callBtn.textContent = 'Чек';
         betBtn.textContent = 'Бет 10';
-        hintBox.textContent = prefix + 'Можно чекнуть или поставить 10.';
+        hintBox.textContent = 'Ваш ход. Можно чекнуть или поставить 10.';
       } else {
         callBtn.textContent = 'Колл ' + toCall;
         betBtn.textContent = 'Рейз до ' + (currentBet + 10);
-        hintBox.textContent = prefix + 'Для колла нужно докинуть ' + toCall + ' фишек.';
+        hintBox.textContent = 'Ваш ход. Для колла нужно докинуть ' + toCall + ' фишек.';
       }
     }
 
