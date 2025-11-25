@@ -217,8 +217,10 @@ function evaluate5(cards5) {
   return ranksToPattern(ranks);
 }
 
+// теперь возвращаем и счёт, и сами 5 лучших карт
 function evaluate7(cards7) {
-  let best = 0;
+  let bestScore = 0;
+  let bestHand = null;
   const n = cards7.length;
   for (let a = 0; a < n - 4; a++) {
     for (let b = a + 1; b < n - 3; b++) {
@@ -227,13 +229,16 @@ function evaluate7(cards7) {
           for (let e = d + 1; e < n; e++) {
             const hand5 = [cards7[a], cards7[b], cards7[c], cards7[d], cards7[e]];
             const score = evaluate5(hand5);
-            if (score > best) best = score;
+            if (score > bestScore || bestHand === null) {
+              bestScore = score;
+              bestHand = hand5;
+            }
           }
         }
       }
     }
   }
-  return best;
+  return { score: bestScore, hand: bestHand };
 }
 
 function describeHandScore(score) {
@@ -249,6 +254,11 @@ function describeHandScore(score) {
     case 1: return 'Пара';
     default: return 'Старшая карта';
   }
+}
+
+function cardToString(card) {
+  if (!card) return '';
+  return String(card.rank) + String(card.suit);
 }
 
 // ================= Состояние стола =================
@@ -383,19 +393,14 @@ function handleTurnTimeout() {
     broadcastGameState();
     scheduleTurnTimer();
   } else {
-    // можно было чекнуть -> делаем авто-check
-    // используем ту же логику, что и при ручном "Чек",
+    // можно было чекнуть -> используем ту же логику, что и ручной чек,
     // но не считаем это кликом игрока
     const prevClicked = p.hasClickedThisHand;
 
-    // этот вызов выполнит обычный "чек":
-    // выставит hasActedThisStreet, сдвинет ход, autoAdvanceIfReady и т.д.
-    handlePlayerAction(p.id, 'call');
+    handlePlayerAction(p.id, 'call'); // внутри для toCall<=0 это чек
 
-    // возвращаем флаг "игрок сам нажимал" в исходное состояние
-    p.hasClickedThisHand = prevClicked;
+    p.hasClickedThisHand = prevClicked; // возвращаем флаг клика
 
-    // перезапишем сообщение стола, что это именно авто-check по таймеру
     table.lastLogMessage = `Игрок ${p.name} не сделал ход, авто-check`;
 
     pushSnapshot('after auto-check timeout', table);
@@ -632,9 +637,9 @@ function resolveShowdown() {
 
   const results = contenders.map(p => {
     const cards7 = [...p.hand, ...table.communityCards];
-    const score = evaluate7(cards7);
+    const { score, hand } = evaluate7(cards7);
     const text = describeHandScore(score);
-    return { player: p, score, text };
+    return { player: p, score, text, best5: hand };
   });
 
   const best = Math.max(...results.map(r => r.score));
@@ -651,13 +656,18 @@ function resolveShowdown() {
   }
 
   const winnersDesc = winners
-    .map(w => `${w.player.name || 'Игрок'} — ${w.text}`)
+    .map(w => {
+      const cardsStr = (w.best5 || []).map(cardToString).join(' ');
+      return `${w.player.name || 'Игрок'} — ${w.text} (${cardsStr})`;
+    })
     .join(', ');
 
   table.players.forEach(p => {
     const winRec = winners.find(w => w.player.id === p.id);
     if (winRec) {
-      p.message = `Вы выиграли с комбинацией: ${winRec.text}. Банк: ${share + (winners[0].player.id === p.id ? remainder : 0)}`;
+      const cardsStr = (winRec.best5 || []).map(cardToString).join(' ');
+      const winBank = share + (winners[0].player.id === p.id ? remainder : 0);
+      p.message = `Вы выиграли с комбинацией: ${winRec.text} (${cardsStr}). Банк: ${winBank}`;
     } else {
       p.message = `Победитель(и): ${winnersDesc}. Общий банк: ${totalPot}`;
     }
@@ -701,6 +711,13 @@ function autoAdvanceIfReady() {
 
 // ================= Состояние для клиента =================
 
+function getBestHandForPlayer(player) {
+  if (!player) return null;
+  const cards7 = [...player.hand, ...table.communityCards];
+  if (cards7.length < 5) return null;
+  return evaluate7(cards7); // { score, hand }
+}
+
 function getPublicStateFor(playerId) {
   const player = table.players.find(p => p.id === playerId);
   const current =
@@ -716,6 +733,16 @@ function getPublicStateFor(playerId) {
   let yourTurnDeadline = null;
   if (yourTurn && table.turnDeadline) {
     yourTurnDeadline = table.turnDeadline;
+  }
+
+  let yourBestHandType = null;
+  let yourBestHandCards = null;
+  if (player) {
+    const best = getBestHandForPlayer(player);
+    if (best && best.hand) {
+      yourBestHandType = describeHandScore(best.score);
+      yourBestHandCards = best.hand;
+    }
   }
 
   return {
@@ -742,6 +769,8 @@ function getPublicStateFor(playerId) {
     currentTurn: current,
     yourTurn,
     turnDeadline: yourTurnDeadline, // только если это твой ход, иначе null
+    yourBestHandType,
+    yourBestHandCards,
     message: player ? player.message || null : null
   };
 }
