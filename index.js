@@ -261,6 +261,83 @@ function cardToString(card) {
   return String(card.rank) + String(card.suit);
 }
 
+/**
+ * ВЫБИРАЕМ РОВНО ТО КОЛ-ВО КАРТ, ЧТО СОСТАВЛЯЕТ КОМБИНАЦИЮ
+ * (старшая – 1, пара – 2, сет – 3, каре – 4, остальное – 5)
+ */
+function extractComboCards(score, hand5) {
+  if (!hand5 || hand5.length === 0) return [];
+  const category = Math.floor(score / 1e10);
+
+  // разбиваем по рангу
+  const byRank = {};
+  for (const c of hand5) {
+    const v = RANK_TO_VALUE[c.rank];
+    if (!byRank[v]) byRank[v] = [];
+    byRank[v].push(c);
+  }
+  const rankKeysDesc = Object.keys(byRank)
+    .map(x => parseInt(x, 10))
+    .sort((a, b) => b - a);
+
+  // Старшая карта
+  if (category === 0) {
+    let bestCard = hand5[0];
+    let bestRank = RANK_TO_VALUE[bestCard.rank];
+    for (const c of hand5) {
+      const v = RANK_TO_VALUE[c.rank];
+      if (v > bestRank) {
+        bestRank = v;
+        bestCard = c;
+      }
+    }
+    return [bestCard];
+  }
+
+  // Пара
+  if (category === 1) {
+    for (const r of rankKeysDesc) {
+      const arr = byRank[r];
+      if (arr.length >= 2) return arr.slice(0, 2);
+    }
+    return hand5.slice(0, 2);
+  }
+
+  // Две пары
+  if (category === 2) {
+    const res = [];
+    for (const r of rankKeysDesc) {
+      const arr = byRank[r];
+      if (arr.length >= 2) {
+        res.push(...arr.slice(0, 2));
+        if (res.length >= 4) break;
+      }
+    }
+    return res.length ? res.slice(0, 4) : hand5.slice(0, 4);
+  }
+
+  // Сет
+  if (category === 3) {
+    for (const r of rankKeysDesc) {
+      const arr = byRank[r];
+      if (arr.length >= 3) return arr.slice(0, 3);
+    }
+    return hand5.slice(0, 3);
+  }
+
+  // Каре
+  if (category === 7) {
+    for (const r of rankKeysDesc) {
+      const arr = byRank[r];
+      if (arr.length >= 4) return arr.slice(0, 4);
+    }
+    return hand5.slice(0, 4);
+  }
+
+  // Стрит, флэш, фулл-хаус, стрит-флэш — всегда 5 карт
+  return hand5.slice(0, 5);
+}
+
 // ================= Состояние стола =================
 
 const TURN_TIMEOUT_MS = 30000;      // 30 секунд на ход
@@ -639,7 +716,8 @@ function resolveShowdown() {
     const cards7 = [...p.hand, ...table.communityCards];
     const { score, hand } = evaluate7(cards7);
     const text = describeHandScore(score);
-    return { player: p, score, text, best5: hand };
+    const comboCards = extractComboCards(score, hand || []);
+    return { player: p, score, text, best5: hand, comboCards };
   });
 
   const best = Math.max(...results.map(r => r.score));
@@ -657,7 +735,7 @@ function resolveShowdown() {
 
   const winnersDesc = winners
     .map(w => {
-      const cardsStr = (w.best5 || []).map(cardToString).join(' ');
+      const cardsStr = (w.comboCards || []).map(cardToString).join(' ');
       return `${w.player.name || 'Игрок'} — ${w.text} (${cardsStr})`;
     })
     .join(', ');
@@ -665,7 +743,7 @@ function resolveShowdown() {
   table.players.forEach(p => {
     const winRec = winners.find(w => w.player.id === p.id);
     if (winRec) {
-      const cardsStr = (winRec.best5 || []).map(cardToString).join(' ');
+      const cardsStr = (winRec.comboCards || []).map(cardToString).join(' ');
       const winBank = share + (winners[0].player.id === p.id ? remainder : 0);
       p.message = `Вы выиграли с комбинацией: ${winRec.text} (${cardsStr}). Банк: ${winBank}`;
     } else {
@@ -741,7 +819,7 @@ function getPublicStateFor(playerId) {
     const best = getBestHandForPlayer(player);
     if (best && best.hand) {
       yourBestHandType = describeHandScore(best.score);
-      yourBestHandCards = best.hand;
+      yourBestHandCards = extractComboCards(best.score, best.hand);
     }
   }
 
