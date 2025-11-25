@@ -361,7 +361,9 @@ let table = {
   minRaise: 10,
   currentTurnIndex: null,
   lastLogMessage: '',
-  turnDeadline: null    // timestamp (ms) когда истекает ход текущего игрока
+  turnDeadline: null,   // timestamp (ms) когда истекает ход текущего игрока
+  potDetails: [],       // массив строк с расшифровкой банков (основной + сайд-поты)
+  dealerDetails: null   // объединённый текст для крупье (многострочный)
 };
 
 function activePlayers() {
@@ -389,6 +391,9 @@ function resetHandState() {
   table.minRaise = 10;
   table.currentTurnIndex = null;
   table.turnDeadline = null;
+  table.potDetails = [];
+  table.dealerDetails = null;
+
   table.players.forEach(p => {
     p.hand = [];
     p.inHand = false;
@@ -523,6 +528,8 @@ function startHand() {
   table.stage = 'preflop';
   table.currentBet = 0;
   table.minRaise = 10;
+  table.potDetails = [];
+  table.dealerDetails = null;
 
   // сбрасываем раздачные поля
   table.players.forEach(p => {
@@ -742,6 +749,9 @@ function goToShowdown() {
   table.currentTurnIndex = null;
   table.turnDeadline = null;
 
+  table.potDetails = [];
+  table.dealerDetails = null;
+
   resolveShowdown();
   pushSnapshot('after showdown', table);
   scheduleNextHandIfNeeded();
@@ -751,15 +761,23 @@ function resolveShowdown() {
   const contenders = activePlayers();
   const totalPotFromBets = getTotalPotFromBets();
 
+  // обнуляем/готовим поля для детальной расшифровки
+  table.potDetails = [];
+  table.dealerDetails = null;
+
+  // Никто не претендует
   if (contenders.length === 0) {
     table.mainPot = 0;
     table.streetPot = 0;
     table.players.forEach(p => { p.totalBet = 0; });
+    const line = `Общий банк ${totalPotFromBets} фишек сгорел: к моменту шоудауна нет активных игроков.`;
     table.lastLogMessage = 'Банк сгорел (нет активных игроков)';
+    table.potDetails.push(line);
+    table.dealerDetails = table.potDetails.join('\n');
     return;
   }
 
-  // Если остался один активный игрок — забирает весь банк (all-in/фолды и т.п.)
+  // Один претендент — все сфолдили / остальные в пасе
   if (contenders.length === 1) {
     const winner = contenders[0];
     const totalPot = totalPotFromBets;
@@ -769,7 +787,7 @@ function resolveShowdown() {
 
     table.players.forEach(p => {
       if (p.id !== winner.id) {
-        p.message = `Игрок ${winner.name} забрал банк без вскрытия`;
+        p.message = `Игрок ${winner.name} забрал банк без вскрытия (${totalPot} фишек).`;
       }
       p.totalBet = 0;
     });
@@ -778,6 +796,12 @@ function resolveShowdown() {
     table.mainPot = 0;
     table.streetPot = 0;
     table.lastLogMessage = `Банк ${totalPot} фишек без вскрытия забрал игрок ${winner.name}`;
+
+    table.potDetails.push(
+      `Общий банк: ${totalPot} фишек. Все остальные игроки сбросили карты, ` +
+      `игрок ${winner.name} забирает весь банк без вскрытия.`
+    );
+    table.dealerDetails = table.potDetails.join('\n');
     return;
   }
 
@@ -798,6 +822,17 @@ function resolveShowdown() {
   const pots = buildSidePots();
   const perPlayerWin = {};
   const potSummaries = [];
+  const detailLines = [];
+
+  const computedPotTotal = pots.reduce((s, p) => s + p.amount, 0);
+  const totalPot = computedPotTotal;
+
+  detailLines.push(
+    `Общий банк по ставкам: ${totalPotFromBets} фишек.` +
+    (totalPotFromBets !== computedPotTotal
+      ? ` (служебно: сумма по сайд-потам=${computedPotTotal})`
+      : '')
+  );
 
   let potIndex = 1;
   for (const pot of pots) {
@@ -830,6 +865,10 @@ function resolveShowdown() {
       if (idx === 0) remainder = 0;
     });
 
+    const participantNames = eligibleResults
+      .map(r => r.player.name || 'Игрок')
+      .join(', ');
+
     const wDesc = winnersForPot
       .map(w => {
         const cardsStr = (w.comboCards || []).map(cardToString).join(' ');
@@ -837,11 +876,15 @@ function resolveShowdown() {
       })
       .join(', ');
 
-    potSummaries.push(`Пот ${potIndex} (${pot.amount}): ${wDesc}`);
+    potSummaries.push(`Пот ${potIndex} (${pot.amount} фишек): ${wDesc}`);
+
+    detailLines.push(
+      `Пот ${potIndex}: ${pot.amount} фишек. Участвуют: ${participantNames}. ` +
+      `Победитель(и): ${wDesc}.`
+    );
+
     potIndex++;
   }
-
-  const totalPot = pots.reduce((s, p) => s + p.amount, 0);
 
   // Сообщения игрокам
   table.players.forEach(p => {
@@ -877,6 +920,9 @@ function resolveShowdown() {
   table.lastLogMessage = pots.length > 0
     ? `Шоудаун. ${potSummaries.join(' | ')}. Общий банк: ${totalPot}`
     : `Шоудаун. Общий банк: ${totalPot}`;
+
+  table.potDetails = detailLines;
+  table.dealerDetails = detailLines.join('\n');
 }
 
 // ================= Авто-переход улиц =================
@@ -957,6 +1003,8 @@ function getPublicStateFor(playerId) {
     minRaise: table.minRaise,
     buttonPlayerId: btnPlayer ? btnPlayer.id : null,
     tableMessage: table.lastLogMessage || null,
+    potDetails: table.potDetails || [],
+    dealerDetails: table.dealerDetails || null,
     players: table.players.map(p => ({
       id: p.id,
       name: p.name,
