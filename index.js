@@ -257,7 +257,6 @@ const TURN_TIMEOUT_MS = 30000;      // 30 секунд на ход
 const NEXT_HAND_DELAY_MS = 6000;    // 6 секунд показать шоудаун и начать новую
 
 let turnTimer = null;
-let turnCountdownInterval = null;   // интервал для обратного счёта
 let nextHandTimer = null;
 
 let table = {
@@ -274,7 +273,7 @@ let table = {
   minRaise: 10,
   currentTurnIndex: null,
   lastLogMessage: '',
-  turnDeadline: null    // timestamp (ms) до которого должен походить текущий игрок
+  turnDeadline: null    // timestamp (ms) когда истекает ход текущего игрока
 };
 
 function activePlayers() {
@@ -325,10 +324,7 @@ function clearTurnTimer() {
     clearTimeout(turnTimer);
     turnTimer = null;
   }
-  if (turnCountdownInterval) {
-    clearInterval(turnCountdownInterval);
-    turnCountdownInterval = null;
-  }
+  table.turnDeadline = null;
 }
 
 function clearNextHandTimer() {
@@ -347,44 +343,11 @@ function scheduleTurnTimer() {
   const p = table.players[table.currentTurnIndex];
   if (!p || !p.inHand || p.hasFolded || p.isPaused) return;
 
-  // фиксируем дедлайн
   table.turnDeadline = Date.now() + TURN_TIMEOUT_MS;
 
-  // основной таймер хода (по истечении — авто-действие)
   turnTimer = setTimeout(() => {
     handleTurnTimeout();
   }, TURN_TIMEOUT_MS);
-
-  // интервал для обратного счёта, отправляем только текущему игроку
-  turnCountdownInterval = setInterval(() => {
-    if (!['preflop', 'flop', 'turn', 'river'].includes(table.stage)) {
-      clearTurnTimer();
-      return;
-    }
-    if (table.currentTurnIndex == null) {
-      clearTurnTimer();
-      return;
-    }
-
-    const cur = table.players[table.currentTurnIndex];
-    if (!cur || !cur.inHand || cur.hasFolded || cur.isPaused) {
-      clearTurnTimer();
-      return;
-    }
-
-    const now = Date.now();
-    const msLeft = table.turnDeadline ? (table.turnDeadline - now) : 0;
-    const secLeft = Math.max(0, Math.ceil(msLeft / 1000));
-
-    // отправляем состояние только текущему игроку, с его таймером
-    io.to(cur.id).emit('gameState', getPublicStateFor(cur.id));
-
-    if (secLeft <= 0) {
-      // таймер хода сам сработает через handleTurnTimeout, интервал больше не нужен
-      clearInterval(turnCountdownInterval);
-      turnCountdownInterval = null;
-    }
-  }, 1000);
 }
 
 function handleTurnTimeout() {
@@ -464,7 +427,6 @@ function startHand() {
   table.stage = 'preflop';
   table.currentBet = 0;
   table.minRaise = 10;
-  table.turnDeadline = null;
 
   // сбрасываем раздачные поля
   table.players.forEach(p => {
@@ -552,7 +514,6 @@ function startNewStreet(newStage) {
   table.stage = newStage;
   table.currentBet = 0;
   table.minRaise = 10;
-  table.turnDeadline = null;
   table.players.forEach(p => {
     p.betThisStreet = 0;
     p.hasActedThisStreet = false;
@@ -561,6 +522,7 @@ function startNewStreet(newStage) {
   const len = table.players.length;
   if (len === 0) {
     table.currentTurnIndex = null;
+    clearTurnTimer();
     return;
   }
 
@@ -628,6 +590,7 @@ function goToShowdown() {
   table.stage = 'showdown';
   table.currentTurnIndex = null;
   table.turnDeadline = null;
+
   resolveShowdown();
   pushSnapshot('after showdown', table);
   scheduleNextHandIfNeeded();
@@ -677,7 +640,7 @@ function resolveShowdown() {
     w.player.stack += share;
   });
   if (remainder > 0) {
-    winners[0].player.stack += remainder; // остаток отдаём первому победителю (как обсуждали)
+    winners[0].player.stack += remainder;
   }
 
   const winnersDesc = winners
@@ -687,8 +650,7 @@ function resolveShowdown() {
   table.players.forEach(p => {
     const winRec = winners.find(w => w.player.id === p.id);
     if (winRec) {
-      const extra = (winners[0].player.id === p.id ? remainder : 0);
-      p.message = `Вы выиграли с комбинацией: ${winRec.text}. Банк: ${share + extra}`;
+      p.message = `Вы выиграли с комбинацией: ${winRec.text}. Банк: ${share + (winners[0].player.id === p.id ? remainder : 0)}`;
     } else {
       p.message = `Победитель(и): ${winnersDesc}. Общий банк: ${totalPot}`;
     }
@@ -743,17 +705,10 @@ function getPublicStateFor(playerId) {
   const totalPot = table.mainPot + table.streetPot;
   const btnPlayer = table.players[table.buttonIndex] || null;
 
-  // считаем секунды до конца хода только для текущего игрока
-  let turnSecondsLeft = null;
-  if (
-    player &&
-    current &&
-    player.id === current &&
-    ['preflop', 'flop', 'turn', 'river'].includes(table.stage) &&
-    table.turnDeadline
-  ) {
-    const msLeft = table.turnDeadline - Date.now();
-    turnSecondsLeft = Math.max(0, Math.ceil(msLeft / 1000));
+  const yourTurn = !!(player && current === player.id);
+  let yourTurnDeadline = null;
+  if (yourTurn && table.turnDeadline) {
+    yourTurnDeadline = table.turnDeadline;
   }
 
   return {
@@ -768,7 +723,6 @@ function getPublicStateFor(playerId) {
     minRaise: table.minRaise,
     buttonPlayerId: btnPlayer ? btnPlayer.id : null,
     tableMessage: table.lastLogMessage || null,
-    turnSecondsLeft, // таймер хода (виден только ходящему)
     players: table.players.map(p => ({
       id: p.id,
       name: p.name,
@@ -779,7 +733,8 @@ function getPublicStateFor(playerId) {
     })),
     yourCards: player ? player.hand : [],
     currentTurn: current,
-    yourTurn: !!(player && current === player.id),
+    yourTurn,
+    turnDeadline: yourTurnDeadline, // только если это твой ход, иначе null
     message: player ? player.message || null : null
   };
 }
@@ -796,7 +751,7 @@ function advanceTurn() {
   const len = table.players.length;
   if (len === 0) {
     table.currentTurnIndex = null;
-    table.turnDeadline = null;
+    clearTurnTimer();
     return;
   }
   if (table.currentTurnIndex === null) {
@@ -808,13 +763,12 @@ function advanceTurn() {
     const p = table.players[idx];
     if (p.inHand && !p.hasFolded && !p.isPaused && p.stack > 0) {
       table.currentTurnIndex = idx;
-      table.turnDeadline = null;
       return;
     }
   }
 
   table.currentTurnIndex = null;
-  table.turnDeadline = null;
+  clearTurnTimer();
 }
 
 // ================= Обработка действий игрока =================
@@ -848,7 +802,6 @@ function handlePlayerAction(playerId, actionType) {
       goToShowdown();
     } else {
       advanceTurn();
-      scheduleTurnTimer();
     }
     return;
   }
@@ -864,7 +817,6 @@ function handlePlayerAction(playerId, actionType) {
       autoAdvanceIfReady();
       if (table.stage !== 'showdown' && !isBettingRoundComplete()) {
         advanceTurn();
-        scheduleTurnTimer();
       }
       return;
     }
@@ -881,7 +833,6 @@ function handlePlayerAction(playerId, actionType) {
     autoAdvanceIfReady();
     if (table.stage !== 'showdown' && !isBettingRoundComplete()) {
       advanceTurn();
-      scheduleTurnTimer();
     }
     return;
   }
@@ -912,7 +863,6 @@ function handlePlayerAction(playerId, actionType) {
       }
 
       advanceTurn();
-      scheduleTurnTimer();
       return;
     } else {
       // рейз на +10 поверх текущей ставки
@@ -937,7 +887,6 @@ function handlePlayerAction(playerId, actionType) {
       }
 
       advanceTurn();
-      scheduleTurnTimer();
       return;
     }
   }
@@ -1005,7 +954,7 @@ io.on('connection', (socket) => {
     handlePlayerAction(socket.id, type);
     pushSnapshot(`after action ${type} from ${socket.id}`, table);
     broadcastGameState();
-    // scheduleTurnTimer вызывается внутри handlePlayerAction, когда нужно
+    scheduleTurnTimer();
   });
 
   socket.on('setPlaying', (data) => {
