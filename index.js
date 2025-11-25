@@ -407,6 +407,7 @@ function goToShowdown() {
   table.stage = 'showdown';
   table.currentTurnIndex = null;
   resolveShowdown();
+  pushSnapshot('after showdown');
 }
 
 function resolveShowdown() {
@@ -710,30 +711,35 @@ io.on('connection', (socket) => {
   });
 
   socket.on('startHand', () => {
-    console.log('startHand requested');
-    startHand();
-    broadcastGameState();
+  console.log('startHand requested');
+  startHand();
+  pushSnapshot('after startHand');
+  broadcastGameState();
   });
 
   socket.on('nextStage', () => {
-    console.log('nextStage requested');
-    if (table.stage === 'showdown') {
-      if (table.players.length > 0) {
-        table.buttonIndex = (table.buttonIndex + 1) % table.players.length;
-      }
-      resetHandState();
-    } else {
-      autoAdvanceIfReady();
+  console.log('nextStage requested');
+  if (table.stage === 'showdown') {
+    if (table.players.length > 0) {
+      table.buttonIndex = (table.buttonIndex + 1) % table.players.length;
     }
-    broadcastGameState();
+    resetHandState();
+    pushSnapshot('after resetHandState (new hand)');
+  } else {
+    autoAdvanceIfReady();
+    pushSnapshot('after manual nextStage/autoAdvanceIfReady');
+  }
+  broadcastGameState();
   });
 
   socket.on('action', (data) => {
-    const type = data && data.type;
-    console.log('action from', socket.id, type);
-    if (!type) return;
-    handlePlayerAction(socket.id, type);
-    broadcastGameState();
+  const type = data && data.type;
+  console.log('action from', socket.id, type);
+  if (!type) return;
+
+  handlePlayerAction(socket.id, type);
+  pushSnapshot(`after action ${type} from ${socket.id}`);
+  broadcastGameState();
   });
 
   socket.on('disconnect', () => {
