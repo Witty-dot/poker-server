@@ -21,17 +21,178 @@ const io = new Server(server, {
   }
 });
 
-// Состояние одного демо-стола
+// ===== Оценка рук (упрощённый, но нормальный ранкер) =====
+
+const RANK_TO_VALUE = {
+  '2': 2, '3': 3, '4': 4, '5': 5,
+  '6': 6, '7': 7, '8': 8, '9': 9,
+  'T': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14
+};
+
+function getStraightHighFromRanks(sortedDescRanks) {
+  const uniq = [...new Set(sortedDescRanks)];
+  if (uniq.length < 5) return 0;
+
+  const hasA = uniq.includes(14);
+  if (hasA && [5, 4, 3, 2].every(v => uniq.includes(v))) {
+    return 5; // A-5 стрейт
+  }
+
+  for (let i = 0; i <= uniq.length - 5; i++) {
+    let ok = true;
+    for (let j = 0; j < 4; j++) {
+      if (uniq[i + j] - 1 !== uniq[i + j + 1]) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) return uniq[i];
+  }
+  return 0;
+}
+
+function evaluate5(cards5) {
+  const ranks = cards5.map(c => RANK_TO_VALUE[c.rank]).sort((a, b) => b - a);
+  const suits = cards5.map(c => c.suit);
+  const isFlush = suits.every(s => s === suits[0]);
+
+  const rankCount = {};
+  for (const r of ranks) {
+    rankCount[r] = (rankCount[r] || 0) + 1;
+  }
+  const entries = Object.entries(rankCount).map(([r, c]) => ({
+    rank: parseInt(r, 10),
+    count: c
+  }));
+  entries.sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    return b.rank - a.rank;
+  });
+
+  const straightHigh = getStraightHighFromRanks(ranks);
+  const isStraight = straightHigh > 0;
+
+  function ranksToPattern(list) {
+    return list.reduce((acc, r) => acc * 15 + r, 0);
+  }
+
+  // Straight flush
+  if (isFlush && isStraight) {
+    let high = straightHigh;
+    let straightRanks;
+    if (high === 5) straightRanks = [5, 4, 3, 2, 1];
+    else straightRanks = [high, high - 1, high - 2, high - 3, high - 4];
+    return 8 * 1e10 + ranksToPattern(straightRanks);
+  }
+
+  // Four of a kind
+  if (entries[0].count === 4) {
+    const fourRank = entries[0].rank;
+    const kicker = entries[1].rank;
+    return 7 * 1e10 + ranksToPattern([fourRank, kicker]);
+  }
+
+  // Full house
+  if (entries[0].count === 3 && entries[1].count >= 2) {
+    const tripleRank = entries[0].rank;
+    const pairRank = entries[1].rank;
+    return 6 * 1e10 + ranksToPattern([tripleRank, pairRank]);
+  }
+
+  // Flush
+  if (isFlush) {
+    return 5 * 1e10 + ranksToPattern(ranks);
+  }
+
+  // Straight
+  if (isStraight) {
+    let high = straightHigh;
+    let straightRanks;
+    if (high === 5) straightRanks = [5, 4, 3, 2, 1];
+    else straightRanks = [high, high - 1, high - 2, high - 3, high - 4];
+    return 4 * 1e10 + ranksToPattern(straightRanks);
+  }
+
+  // Trips
+  if (entries[0].count === 3) {
+    const tripleRank = entries[0].rank;
+    const kickers = [];
+    for (let i = 1; i < entries.length; i++) {
+      for (let j = 0; j < entries[i].count; j++) {
+        kickers.push(entries[i].rank);
+      }
+    }
+    kickers.sort((a, b) => b - a);
+    const ordered = [tripleRank, ...kickers.slice(0, 2)];
+    return 3 * 1e10 + ranksToPattern(ordered);
+  }
+
+  // Two pair
+  if (entries[0].count === 2 && entries[1].count === 2) {
+    const highPair = entries[0].rank;
+    const lowPair = entries[1].rank;
+    let kicker = null;
+    for (let i = 2; i < entries.length; i++) {
+      if (entries[i].count === 1) {
+        kicker = entries[i].rank;
+        break;
+      }
+    }
+    if (kicker == null) kicker = entries[0].rank;
+    const ordered = [highPair, lowPair, kicker];
+    return 2 * 1e10 + ranksToPattern(ordered);
+  }
+
+  // One pair
+  if (entries[0].count === 2) {
+    const pairRank = entries[0].rank;
+    const kickers = [];
+    for (let i = 1; i < entries.length; i++) {
+      for (let j = 0; j < entries[i].count; j++) {
+        kickers.push(entries[i].rank);
+      }
+    }
+    kickers.sort((a, b) => b - a);
+    const ordered = [pairRank, ...kickers.slice(0, 3)];
+    return 1 * 1e10 + ranksToPattern(ordered);
+  }
+
+  // High card
+  return ranksToPattern(ranks);
+}
+
+function evaluate7(cards7) {
+  let best = 0;
+  const n = cards7.length;
+  for (let a = 0; a < n - 4; a++) {
+    for (let b = a + 1; b < n - 3; b++) {
+      for (let c = b + 1; c < n - 2; c++) {
+        for (let d = c + 1; d < n - 1; d++) {
+          for (let e = d + 1; e < n; e++) {
+            const hand5 = [cards7[a], cards7[b], cards7[c], cards7[d], cards7[e]];
+            const score = evaluate5(hand5);
+            if (score > best) best = score;
+          }
+        }
+      }
+    }
+  }
+  return best;
+}
+
+// ===== Состояние стола =====
+
 let table = {
   players: [],          // { id, name, stack, hand, inHand, hasFolded, betThisStreet, hasActedThisStreet }
   deck: [],
-  communityCards: [],   // борд
+  communityCards: [],
   pot: 0,
   stage: 'waiting',     // waiting | preflop | flop | turn | river | showdown
   smallBlind: 10,
   bigBlind: 20,
-  buttonIndex: 0,       // индекс дилера
-  currentBet: 0,        // текущая ставка на этой улице
+  buttonIndex: 0,
+  currentBet: 0,
+  minRaise: 10,
   currentTurnIndex: null
 };
 
@@ -46,6 +207,7 @@ function resetHandState() {
   table.stage = 'waiting';
   table.currentBet = 0;
   table.currentTurnIndex = null;
+  table.minRaise = table.bigBlind;
   table.players.forEach(p => {
     p.hand = [];
     p.inHand = false;
@@ -55,19 +217,20 @@ function resetHandState() {
   });
 }
 
-// Старт новой раздачи
+// ===== Раздача =====
+
 function startHand() {
   if (table.players.length < 2) {
     console.log('Not enough players to start hand');
     return;
   }
 
-  // Подготовка
   table.deck = createDeck();
   table.communityCards = [];
   table.pot = 0;
   table.stage = 'preflop';
   table.currentBet = 0;
+  table.minRaise = table.bigBlind;
 
   table.players.forEach(p => {
     p.hand = [];
@@ -77,7 +240,7 @@ function startHand() {
     p.hasActedThisStreet = false;
   });
 
-  // Раздать по 2 карты каждому
+  // Раздать по 2 карты
   for (let r = 0; r < 2; r++) {
     for (const p of table.players) {
       const card = dealCards(table.deck, 1)[0];
@@ -89,7 +252,7 @@ function startHand() {
 
   const len = table.players.length;
 
-  // Блайнды: дилер = buttonIndex, далее SB, BB, UTG
+  // Баттон, SB, BB, UTG
   const sbIndex = (table.buttonIndex + 1) % len;
   const bbIndex = (table.buttonIndex + 2) % len;
   const utgIndex = (table.buttonIndex + 3) % len;
@@ -107,16 +270,15 @@ function startHand() {
   takeBlind(bbIndex, table.bigBlind);
 
   table.currentBet = table.bigBlind;
+  table.minRaise = table.bigBlind;
   table.currentTurnIndex = utgIndex;
 
   console.log('Hand started. Pot:', table.pot, 'Stage:', table.stage);
 }
 
-// Раздаём борд
 function dealCommunity(count) {
-  // Burn
   if (table.deck.length > 0) {
-    table.deck.pop();
+    table.deck.pop(); // burn
   }
   for (let i = 0; i < count; i++) {
     const card = dealCards(table.deck, 1)[0];
@@ -126,21 +288,21 @@ function dealCommunity(count) {
   }
 }
 
-// Начать новую улицу (flop / turn / river)
 function startNewStreet(newStage) {
   table.stage = newStage;
   table.currentBet = 0;
+  table.minRaise = table.bigBlind; // для демо просто фиксированная мин.ставка
   table.players.forEach(p => {
     p.betThisStreet = 0;
     p.hasActedThisStreet = false;
   });
 
-  // ход с первого активного игрока после баттона
   const len = table.players.length;
   if (len === 0) {
     table.currentTurnIndex = null;
     return;
   }
+
   const start = (table.buttonIndex + 1) % len;
   table.currentTurnIndex = null;
   for (let i = 0; i < len; i++) {
@@ -153,60 +315,80 @@ function startNewStreet(newStage) {
   }
 }
 
-// Проверка: закончился ли цикл ставок на улице
+// Все ли активные игроки уравняли ставку/закончили действия на улице
 function isBettingRoundComplete() {
   const actives = activePlayers();
   if (actives.length <= 1) return true;
-
   return actives.every(p => p.hasActedThisStreet && p.betThisStreet === table.currentBet);
 }
 
-// Переход по стадиям
-function nextStage() {
-  if (table.stage === 'waiting') {
-    startHand();
+// ===== Шоудаун =====
+
+function goToShowdown() {
+  table.stage = 'showdown';
+  table.currentTurnIndex = null;
+  resolveShowdown();
+}
+
+function resolveShowdown() {
+  const contenders = activePlayers();
+  if (contenders.length === 0) return;
+
+  if (contenders.length === 1) {
+    const winner = contenders[0];
+    winner.stack += table.pot;
+    console.log(`Winner by fold: ${winner.name}, +${table.pot}`);
+    table.pot = 0;
     return;
   }
 
-  if (['preflop', 'flop', 'turn', 'river'].includes(table.stage)) {
-    if (!isBettingRoundComplete()) {
-      console.log('Betting round is not complete yet');
-      return;
-    }
+  const scores = contenders.map(p => {
+    const cards7 = [...p.hand, ...table.communityCards];
+    const score = evaluate7(cards7);
+    return { player: p, score };
+  });
 
-    const actives = activePlayers();
-    if (actives.length <= 1) {
-      table.stage = 'showdown';
-      table.currentTurnIndex = null;
-      return;
-    }
+  const best = Math.max(...scores.map(s => s.score));
+  const winners = scores.filter(s => s.score === best).map(s => s.player);
 
-    if (table.stage === 'preflop') {
-      dealCommunity(3); // flop
-      startNewStreet('flop');
-    } else if (table.stage === 'flop') {
-      dealCommunity(1); // turn
-      startNewStreet('turn');
-    } else if (table.stage === 'turn') {
-      dealCommunity(1); // river
-      startNewStreet('river');
-    } else if (table.stage === 'river') {
-      table.stage = 'showdown';
-      table.currentTurnIndex = null;
-    }
+  const share = Math.floor(table.pot / winners.length);
+  winners.forEach(w => {
+    w.stack += share;
+  });
+  console.log('Showdown winners:', winners.map(w => w.name), 'share each:', share);
+  table.pot = 0;
+}
+
+// ===== Авто-переход улиц =====
+
+function autoAdvanceIfReady() {
+  const stages = ['preflop', 'flop', 'turn', 'river'];
+  if (!stages.includes(table.stage)) return;
+
+  const actives = activePlayers();
+  if (actives.length <= 1) {
+    goToShowdown();
     return;
   }
 
-  if (table.stage === 'showdown') {
-    // Новая раздача: сдвигаем баттон
-    if (table.players.length > 0) {
-      table.buttonIndex = (table.buttonIndex + 1) % table.players.length;
-    }
-    resetHandState();
+  if (!isBettingRoundComplete()) return;
+
+  if (table.stage === 'preflop') {
+    dealCommunity(3);
+    startNewStreet('flop');
+  } else if (table.stage === 'flop') {
+    dealCommunity(1);
+    startNewStreet('turn');
+  } else if (table.stage === 'turn') {
+    dealCommunity(1);
+    startNewStreet('river');
+  } else if (table.stage === 'river') {
+    goToShowdown();
   }
 }
 
-// Формируем состояние для конкретного игрока
+// ===== Состояние для клиента =====
+
 function getPublicStateFor(playerId) {
   const player = table.players.find(p => p.id === playerId);
   const current =
@@ -232,14 +414,14 @@ function getPublicStateFor(playerId) {
   };
 }
 
-// Рассылка состояния всем игрокам
 function broadcastGameState() {
   for (const p of table.players) {
     io.to(p.id).emit('gameState', getPublicStateFor(p.id));
   }
 }
 
-// Переход хода к следующему активному
+// ===== Ход по кругу =====
+
 function advanceTurn() {
   const len = table.players.length;
   if (len === 0) {
@@ -262,7 +444,8 @@ function advanceTurn() {
   table.currentTurnIndex = null;
 }
 
-// Обработка действия игрока
+// ===== Обработка действий игрока =====
+
 function handlePlayerAction(playerId, actionType) {
   const idx = table.players.findIndex(p => p.id === playerId);
   if (idx < 0) return;
@@ -277,7 +460,7 @@ function handlePlayerAction(playerId, actionType) {
     return;
   }
 
-  // fold / check / call / bet (фиксированный 10)
+  // FOLD
   if (actionType === 'fold') {
     player.hasFolded = true;
     player.inHand = false;
@@ -285,41 +468,23 @@ function handlePlayerAction(playerId, actionType) {
 
     const actives = activePlayers();
     if (actives.length <= 1) {
-      table.stage = 'showdown';
-      table.currentTurnIndex = null;
+      goToShowdown();
     } else {
       advanceTurn();
     }
     return;
   }
 
-  if (actionType === 'check') {
-    // check возможен только если уравнивать нечего
-    if (player.betThisStreet < table.currentBet) {
-      console.log('Cannot check, need to call');
-      return;
-    }
-    player.hasActedThisStreet = true;
-
-    if (isBettingRoundComplete()) {
-      table.currentTurnIndex = null;
-    } else {
-      advanceTurn();
-    }
-    return;
-  }
-
+  // CALL (или CHECK, если нечего коллировать)
   if (actionType === 'call') {
     const toCall = table.currentBet - player.betThisStreet;
+
     if (toCall <= 0) {
-      // Нечего коллировать — считаем как check
-      if (player.betThisStreet === table.currentBet) {
-        player.hasActedThisStreet = true;
-        if (isBettingRoundComplete()) {
-          table.currentTurnIndex = null;
-        } else {
-          advanceTurn();
-        }
+      // это check
+      player.hasActedThisStreet = true;
+      autoAdvanceIfReady();
+      if (table.stage !== 'showdown' && !isBettingRoundComplete()) {
+        advanceTurn();
       }
       return;
     }
@@ -332,49 +497,71 @@ function handlePlayerAction(playerId, actionType) {
     table.pot += pay;
     player.hasActedThisStreet = true;
 
-    if (isBettingRoundComplete()) {
-      table.currentTurnIndex = null;
-    } else {
+    autoAdvanceIfReady();
+    if (table.stage !== 'showdown' && !isBettingRoundComplete()) {
       advanceTurn();
     }
     return;
   }
 
+  // BET / RAISE
   if (actionType === 'bet') {
-    // фиксируем "бет/рейз" на +10 поверх текущей ставки
-    const targetBet = table.currentBet + 10;
-    const toPay = targetBet - player.betThisStreet;
-    const pay = Math.min(player.stack, toPay);
+    const minRaise = table.minRaise || table.bigBlind;
 
-    if (pay <= 0) {
-      console.log('Cannot bet/raise, no chips');
+    if (table.currentBet === 0) {
+      // ПЕРВЫЙ БЕТ НА УЛИЦЕ
+      const toBet = Math.min(player.stack, minRaise);
+      if (toBet <= 0) return;
+
+      player.stack -= toBet;
+      player.betThisStreet += toBet;
+      table.pot += toBet;
+
+      table.currentBet = player.betThisStreet;
+      table.minRaise = minRaise;
+      player.hasActedThisStreet = true;
+
+      // все остальные должны принимать решение
+      for (const p of table.players) {
+        if (p.id !== player.id && p.inHand && !p.hasFolded) {
+          p.hasActedThisStreet = false;
+        }
+      }
+
+      advanceTurn();
+      return;
+    } else {
+      // РЕЙЗ: увеличиваем существующую ставку хотя бы на minRaise
+      const targetBet = table.currentBet + minRaise;
+      const toPay = targetBet - player.betThisStreet;
+      const pay = Math.min(player.stack, toPay);
+      if (pay <= 0) return;
+
+      player.stack -= pay;
+      player.betThisStreet += pay;
+      table.pot += pay;
+
+      table.minRaise = minRaise;
+      table.currentBet = player.betThisStreet;
+      player.hasActedThisStreet = true;
+
+      // все остальные снова принимают решение
+      for (const p of table.players) {
+        if (p.id !== player.id && p.inHand && !p.hasFolded) {
+          p.hasActedThisStreet = false;
+        }
+      }
+
+      advanceTurn();
       return;
     }
-
-    player.stack -= pay;
-    player.betThisStreet += pay;
-    table.pot += pay;
-    table.currentBet = player.betThisStreet;
-    player.hasActedThisStreet = true;
-
-    // после рейза остальные должны принять решение заново
-    for (const p of table.players) {
-      if (p.id !== player.id && p.inHand && !p.hasFolded) {
-        p.hasActedThisStreet = false;
-      }
-    }
-
-    const actives = activePlayers();
-    if (actives.length <= 1) {
-      table.stage = 'showdown';
-      table.currentTurnIndex = null;
-    } else {
-      advanceTurn();
-    }
   }
+
+  console.log('Unknown action:', actionType);
 }
 
-// Логика Socket.IO
+// ===== Socket.IO =====
+
 io.on('connection', (socket) => {
   console.log('New player connected:', socket.id);
 
@@ -409,7 +596,14 @@ io.on('connection', (socket) => {
 
   socket.on('nextStage', () => {
     console.log('nextStage requested');
-    nextStage();
+    if (table.stage === 'showdown') {
+      if (table.players.length > 0) {
+        table.buttonIndex = (table.buttonIndex + 1) % table.players.length;
+      }
+      resetHandState();
+    } else {
+      autoAdvanceIfReady();
+    }
     broadcastGameState();
   });
 
@@ -431,15 +625,13 @@ io.on('connection', (socket) => {
       } else {
         const actives = activePlayers();
         if (actives.length <= 1 && table.stage !== 'waiting') {
-          table.stage = 'showdown';
-          table.currentTurnIndex = null;
+          goToShowdown();
         }
       }
       broadcastGameState();
     }
   });
 
-  // При подключении сразу отдаём состояние
   socket.emit('gameState', getPublicStateFor(socket.id));
 });
 
