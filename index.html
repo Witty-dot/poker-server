@@ -132,7 +132,9 @@
 
     <div class="table-info">
       <div><strong>Стадия:</strong> <span id="stage">waiting</span></div>
-      <div><strong>Банк:</strong> <span id="pot">0</span> фишек</div>
+      <div><strong>Общий банк (пред. раунды):</strong> <span id="mainPot">0</span> фишек</div>
+      <div><strong>Банк текущего раунда:</strong> <span id="streetPot">0</span> фишек</div>
+      <div><strong>Суммарный банк:</strong> <span id="totalPot">0</span> фишек</div>
       <div><strong>Текущая ставка:</strong> <span id="currentBet">0</span></div>
       <div><strong>Блайнды:</strong> <span id="blinds">10 / 20</span></div>
       <div><strong>Ход игрока:</strong> <span id="currentTurn">—</span></div>
@@ -170,7 +172,9 @@
     const errorBox = document.getElementById('errorBox');
     const hintBox = document.getElementById('hintBox');
     const stageSpan = document.getElementById('stage');
-    const potSpan = document.getElementById('pot');
+    const mainPotSpan = document.getElementById('mainPot');
+    const streetPotSpan = document.getElementById('streetPot');
+    const totalPotSpan = document.getElementById('totalPot');
     const currentBetSpan = document.getElementById('currentBet');
     const blindsSpan = document.getElementById('blinds');
     const currentTurnSpan = document.getElementById('currentTurn');
@@ -262,7 +266,9 @@
       if (!state) return;
 
       stageSpan.textContent = state.stage || 'waiting';
-      potSpan.textContent = state.pot != null ? state.pot : 0;
+      mainPotSpan.textContent = state.mainPot != null ? state.mainPot : 0;
+      streetPotSpan.textContent = state.streetPot != null ? state.streetPot : 0;
+      totalPotSpan.textContent = state.totalPot != null ? state.totalPot : 0;
       currentBetSpan.textContent = state.currentBet != null ? state.currentBet : 0;
       blindsSpan.textContent = (state.smallBlind || 0) + ' / ' + (state.bigBlind || 0);
 
@@ -284,7 +290,7 @@
         boardCardsSpan.innerHTML = '<small>—</small>';
       }
 
-      // игроки
+      // список игроков
       if (!state.players || state.players.length === 0) {
         playersList.innerHTML = '<small>Нет подключений.</small>';
       } else {
@@ -301,7 +307,7 @@
         }).join('');
       }
 
-      // свои карты + стек
+      // свои карты / стек / сообщения
       yourStackSpan.textContent = '—';
       yourCardsDiv.innerHTML = '<small>—</small>';
       yourMessageDiv.textContent = '';
@@ -327,7 +333,7 @@
       const currentBet = state.currentBet || 0;
       const myBet = me ? (me.betThisStreet || 0) : 0;
 
-      // подсказки
+      // подсказка / сообщение
       if (state.message) {
         yourMessageDiv.textContent = state.message;
       } else if (isMyTurn && stage !== 'showdown' && stage !== 'waiting' && me && me.inHand) {
@@ -336,7 +342,6 @@
         yourMessageDiv.textContent = '';
       }
 
-      // управление кнопками действий
       const canAct = isMyTurn && me && me.inHand && !['waiting', 'showdown'].includes(stage);
       foldBtn.disabled = !canAct;
       callBtn.disabled = !canAct;
@@ -347,7 +352,7 @@
         return;
       }
 
-      // логика подписей кнопок
+      // логика подписей кнопок:
       if (currentBet === 0) {
         // ещё никто не ставил: можно чекнуть или поставить
         callBtn.textContent = 'Check';
@@ -356,7 +361,7 @@
       } else {
         const diff = currentBet - myBet;
         if (diff <= 0) {
-          // вы уже уравняли: можно чекнуть (по сути) или рейзнуть
+          // вы уже уравняли: можно чекнуть (пропуск) или рейзнуть
           callBtn.textContent = 'Check';
           betBtn.textContent = 'Raise 10';
           hintBox.textContent = 'Вы уже уравняли ставку: можете Check или Raise 10.';
