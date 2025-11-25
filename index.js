@@ -9,11 +9,47 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// ================= Debug-лог для анализа раздач =================
+
+const debugLog = [];
+
+/**
+ * Снимаем снапшот стола и пишем в лог.
+ * reason — строка "почему" мы делаем снимок (после действия, после шоудауна и т.п.)
+ */
+function pushSnapshot(reason, table) {
+  const snapshot = {
+    ts: new Date().toISOString(),
+    reason,
+    stage: table.stage,
+    mainPot: table.mainPot,
+    streetPot: table.streetPot,
+    totalPot: table.mainPot + table.streetPot,
+    players: table.players.map(p => ({
+      id: p.id,
+      name: p.name,
+      stack: p.stack,
+      betThisStreet: p.betThisStreet,
+      inHand: p.inHand,
+      hasFolded: p.hasFolded,
+      isPaused: !!p.isPaused
+    }))
+  };
+
+  debugLog.push(snapshot);
+  if (debugLog.length > 200) {
+    debugLog.shift(); // держим последние 200 шагов
+  }
+
+  console.log('[SNAPSHOT]', reason, JSON.stringify(snapshot));
+}
+
 // Отдаём фронтенд
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
-// Простой просмотр лога: текстом, чтобы можно было скопировать в чат
+
+// Просмотр лога: текстом, чтобы можно было скопировать в чат
 app.get('/log', (req, res) => {
   if (!debugLog.length) {
     return res.type('text/plain').send('Лог пустой');
@@ -25,7 +61,7 @@ app.get('/log', (req, res) => {
     lines.push(`  stage=${s.stage}, mainPot=${s.mainPot}, streetPot=${s.streetPot}, totalPot=${s.totalPot}`);
     s.players.forEach(pl => {
       lines.push(
-        `  - ${pl.name || pl.id}: stack=${pl.stack}, betThisStreet=${pl.betThisStreet}, inHand=${pl.inHand}, folded=${pl.hasFolded}`
+        `  - ${pl.name || pl.id}: stack=${pl.stack}, betThisStreet=${pl.betThisStreet}, inHand=${pl.inHand}, folded=${pl.hasFolded}, paused=${pl.isPaused}`
       );
     });
     return lines.join('\n');
@@ -33,6 +69,7 @@ app.get('/log', (req, res) => {
 
   res.type('text/plain').send(text);
 });
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -216,57 +253,41 @@ function describeHandScore(score) {
 
 // ================= Состояние стола =================
 
+const TURN_TIMEOUT_MS = 30000;      // 30 секунд на ход
+const NEXT_HAND_DELAY_MS = 3000;    // 3 секунды показать шоудаун и начать новую
+
+let turnTimer = null;
+let nextHandTimer = null;
+
 let table = {
-  players: [],          // { id, name, stack, hand, inHand, hasFolded, betThisStreet, hasActedThisStreet, message }
+  players: [],          // { id, name, stack, hand, inHand, hasFolded, betThisStreet, hasActedThisStreet, message, isPaused, hasClickedThisHand }
   deck: [],
   communityCards: [],
-  // разделяем банк:
-  mainPot: 0,           // общий банк по всем завершённым раундам
-  streetPot: 0,         // банк текущего раунда торговли
+  mainPot: 0,
+  streetPot: 0,
   stage: 'waiting',     // waiting | preflop | flop | turn | river | showdown
   smallBlind: 10,
   bigBlind: 20,
   buttonIndex: 0,
-  currentBet: 0,        // текущая ставка на улице
-  minRaise: 10,         // шаг рейза (для демо фикс 10)
-  currentTurnIndex: null
+  currentBet: 0,
+  minRaise: 10,
+  currentTurnIndex: null,
+  lastLogMessage: ''
 };
-// ================= Debug-лог для анализа раздач =================
 
-const debugLog = [];
-
-/**
- * Снимаем снапшот стола и пишем в лог.
- * reason — строка "почему" мы делаем снимок (после действия, после шоудауна и т.п.)
- */
-function pushSnapshot(reason) {
-  const snapshot = {
-    ts: new Date().toISOString(),
-    reason,
-    stage: table.stage,
-    mainPot: table.mainPot,
-    streetPot: table.streetPot,
-    totalPot: table.mainPot + table.streetPot,
-    players: table.players.map(p => ({
-      id: p.id,
-      name: p.name,
-      stack: p.stack,
-      betThisStreet: p.betThisStreet,
-      inHand: p.inHand,
-      hasFolded: p.hasFolded
-    }))
-  };
-
-  debugLog.push(snapshot);
-  if (debugLog.length > 200) {
-    debugLog.shift(); // держим последние 200 шагов
-  }
-
-  // Одновременно пишем в консоль (полезно смотреть логи Render)
-  console.log('[SNAPSHOT]', reason, JSON.stringify(snapshot));
-}
 function activePlayers() {
   return table.players.filter(p => p.inHand && !p.hasFolded);
+}
+
+function getActiveSeatIndices() {
+  const res = [];
+  for (let i = 0; i < table.players.length; i++) {
+    const p = table.players[i];
+    if (!p.isPaused && p.stack > 0) {
+      res.push(i);
+    }
+  }
+  return res;
 }
 
 function resetHandState() {
@@ -285,6 +306,7 @@ function resetHandState() {
     p.betThisStreet = 0;
     p.hasActedThisStreet = false;
     p.message = null;
+    p.hasClickedThisHand = false;
   });
 }
 
@@ -293,13 +315,105 @@ function collapseStreetPot() {
   table.streetPot = 0;
 }
 
+// ================= Таймеры =================
+
+function clearTurnTimer() {
+  if (turnTimer) {
+    clearTimeout(turnTimer);
+    turnTimer = null;
+  }
+}
+
+function clearNextHandTimer() {
+  if (nextHandTimer) {
+    clearTimeout(nextHandTimer);
+    nextHandTimer = null;
+  }
+}
+
+function scheduleTurnTimer() {
+  clearTurnTimer();
+
+  if (!['preflop', 'flop', 'turn', 'river'].includes(table.stage)) return;
+  if (table.currentTurnIndex == null) return;
+
+  const p = table.players[table.currentTurnIndex];
+  if (!p || !p.inHand || p.hasFolded || p.isPaused) return;
+
+  turnTimer = setTimeout(() => {
+    handleTurnTimeout();
+  }, TURN_TIMEOUT_MS);
+}
+
+function handleTurnTimeout() {
+  turnTimer = null;
+
+  if (!['preflop', 'flop', 'turn', 'river'].includes(table.stage)) return;
+  if (table.currentTurnIndex == null) return;
+
+  const p = table.players[table.currentTurnIndex];
+  if (!p || !p.inHand || p.hasFolded) return;
+
+  const needToCall = table.currentBet > p.betThisStreet;
+
+  if (needToCall) {
+    // должен был реагировать на ставку -> автофолд + пауза
+    p.hasFolded = true;
+    p.inHand = false;
+    p.isPaused = true;
+    p.hasActedThisStreet = true;
+    table.lastLogMessage = `Игрок ${p.name} не сделал ход, авто-фолд и пауза`;
+
+    const actives = activePlayers();
+    if (actives.length <= 1) {
+      goToShowdown();
+      pushSnapshot('after auto-fold timeout -> showdown', table);
+      broadcastGameState();
+      return;
+    }
+
+    advanceTurn();
+    pushSnapshot('after auto-fold timeout', table);
+    broadcastGameState();
+    scheduleTurnTimer();
+  } else {
+    // можно было чекнуть -> авто-check, НЕ считаем как клик игрока
+    p.hasActedThisStreet = true;
+    table.lastLogMessage = `Игрок ${p.name} не сделал ход, авто-check`;
+
+    autoAdvanceIfReady();
+    if (table.stage !== 'showdown' && !isBettingRoundComplete()) {
+      advanceTurn();
+    }
+
+    pushSnapshot('after auto-check timeout', table);
+    broadcastGameState();
+    scheduleTurnTimer();
+  }
+}
+
 // ================= Раздача =================
 
+function nextActiveIndexFrom(baseIndex) {
+  const len = table.players.length;
+  if (len === 0) return null;
+  for (let step = 1; step <= len; step++) {
+    const idx = (baseIndex + step) % len;
+    const p = table.players[idx];
+    if (!p.isPaused && p.stack > 0) return idx;
+  }
+  return null;
+}
+
 function startHand() {
-  if (table.players.length < 2) {
-    console.log('Not enough players to start hand');
+  const activeSeats = getActiveSeatIndices();
+  if (activeSeats.length < 2) {
+    console.log('Not enough active players to start hand');
     return;
   }
+
+  clearTurnTimer();
+  clearNextHandTimer();
 
   table.deck = createDeck();
   table.communityCards = [];
@@ -309,31 +423,44 @@ function startHand() {
   table.currentBet = 0;
   table.minRaise = 10;
 
+  // сбрасываем раздачные поля
   table.players.forEach(p => {
     p.hand = [];
-    p.inHand = true;
+    p.inHand = false;
     p.hasFolded = false;
     p.betThisStreet = 0;
     p.hasActedThisStreet = false;
     p.message = null;
+    p.hasClickedThisHand = false;
   });
 
-  // Раздать по 2 карты
+  // только активным (не на паузе и с фишками) включаем участие и раздаём карты
+  for (const idx of activeSeats) {
+    table.players[idx].inHand = true;
+  }
+
   for (let r = 0; r < 2; r++) {
-    for (const p of table.players) {
+    for (const idx of activeSeats) {
+      const p = table.players[idx];
       const card = dealCards(table.deck, 1)[0];
-      if (card) {
-        p.hand.push(card);
-      }
+      if (card) p.hand.push(card);
     }
   }
 
-  const len = table.players.length;
+  // убеждаемся, что buttonIndex стоит на живом игроке
+  if (
+    table.buttonIndex == null ||
+    table.buttonIndex < 0 ||
+    table.buttonIndex >= table.players.length ||
+    table.players[table.buttonIndex].isPaused ||
+    table.players[table.buttonIndex].stack <= 0
+  ) {
+    table.buttonIndex = activeSeats[0];
+  }
 
-  // Баттон, SB, BB, UTG
-  const sbIndex = (table.buttonIndex + 1) % len;
-  const bbIndex = (table.buttonIndex + 2) % len;
-  const utgIndex = (table.buttonIndex + 3) % len;
+  const sbIndex = nextActiveIndexFrom(table.buttonIndex);
+  const bbIndex = sbIndex != null ? nextActiveIndexFrom(sbIndex) : null;
+  const utgIndex = bbIndex != null ? nextActiveIndexFrom(bbIndex) : null;
 
   function takeBlind(playerIndex, amount) {
     const player = table.players[playerIndex];
@@ -341,17 +468,29 @@ function startHand() {
     const blind = Math.min(player.stack, amount);
     player.stack -= blind;
     player.betThisStreet += blind;
-    table.streetPot += blind;   // блайнды — в банк текущего раунда (префлоп)
+    table.streetPot += blind;
   }
 
-  takeBlind(sbIndex, table.smallBlind);
-  takeBlind(bbIndex, table.bigBlind);
+  if (sbIndex != null) takeBlind(sbIndex, table.smallBlind);
+  if (bbIndex != null) takeBlind(bbIndex, table.bigBlind);
 
   table.currentBet = table.bigBlind;
   table.minRaise = 10;
   table.currentTurnIndex = utgIndex;
 
+  const sbPlayer = sbIndex != null ? table.players[sbIndex] : null;
+  const bbPlayer = bbIndex != null ? table.players[bbIndex] : null;
+
+  if (sbPlayer && bbPlayer) {
+    table.lastLogMessage =
+      `Игрок ${sbPlayer.name} поставил малый блайнд (${table.smallBlind}), ` +
+      `игрок ${bbPlayer.name} поставил большой блайнд (${table.bigBlind})`;
+  } else {
+    table.lastLogMessage = 'Начата новая раздача';
+  }
+
   console.log('Hand started. StreetPot:', table.streetPot, 'Stage:', table.stage);
+  scheduleTurnTimer();
 }
 
 function dealCommunity(count) {
@@ -386,11 +525,12 @@ function startNewStreet(newStage) {
   for (let i = 0; i < len; i++) {
     const idx = (start + i) % len;
     const p = table.players[idx];
-    if (p.inHand && !p.hasFolded) {
+    if (p.inHand && !p.hasFolded && !p.isPaused && p.stack > 0) {
       table.currentTurnIndex = idx;
       break;
     }
   }
+  scheduleTurnTimer();
 }
 
 function isBettingRoundComplete() {
@@ -399,24 +539,63 @@ function isBettingRoundComplete() {
   return actives.every(p => p.hasActedThisStreet && p.betThisStreet === table.currentBet);
 }
 
-// ================= Шоудаун =================
+// ================= Шоудаун и авто-следующая раздача =================
+
+function scheduleNextHandIfNeeded() {
+  clearNextHandTimer();
+
+  nextHandTimer = setTimeout(() => {
+    nextHandTimer = null;
+
+    // перед стартом следующей руки: те, кто участвовал, но не нажимали кнопок -> в паузу
+    table.players.forEach(p => {
+      if (p.inHand && !p.hasClickedThisHand) {
+        p.isPaused = true;
+      }
+    });
+
+    const activeSeats = getActiveSeatIndices();
+    if (activeSeats.length < 2) {
+      // меньше двух играющих -> просто очищаем стол и ждём
+      resetHandState();
+      pushSnapshot('after showdown -> not enough players for next hand', table);
+      broadcastGameState();
+      return;
+    }
+
+    // двигаем баттон к следующему активному
+    const nextBtn = nextActiveIndexFrom(table.buttonIndex ?? activeSeats[0]);
+    if (nextBtn != null) {
+      table.buttonIndex = nextBtn;
+    }
+
+    resetHandState();
+    startHand();
+    pushSnapshot('auto start next hand after showdown', table);
+    broadcastGameState();
+  }, NEXT_HAND_DELAY_MS);
+}
 
 function goToShowdown() {
-  // на всякий случай сгребаем банк раунда в общий
+  clearTurnTimer();
+  clearNextHandTimer();
+
   collapseStreetPot();
   table.stage = 'showdown';
   table.currentTurnIndex = null;
   resolveShowdown();
-  pushSnapshot('after showdown');
+  pushSnapshot('after showdown', table);
+  scheduleNextHandIfNeeded();
 }
 
 function resolveShowdown() {
   const contenders = activePlayers();
-  const totalPot = table.mainPot + table.streetPot; // streetPot тут уже должен быть 0, но на всякий случай складываем
+  const totalPot = table.mainPot + table.streetPot;
 
   if (contenders.length === 0) {
     table.mainPot = 0;
     table.streetPot = 0;
+    table.lastLogMessage = 'Банк сгорел (нет активных игроков)';
     return;
   }
 
@@ -432,6 +611,7 @@ function resolveShowdown() {
     console.log(`Winner by fold: ${winner.name}, +${totalPot}`);
     table.mainPot = 0;
     table.streetPot = 0;
+    table.lastLogMessage = `Банк ${totalPot} фишек без вскрытия забрал игрок ${winner.name}`;
     return;
   }
 
@@ -446,9 +626,14 @@ function resolveShowdown() {
   const winners = results.filter(r => r.score === best);
 
   const share = Math.floor(totalPot / winners.length);
+  const remainder = totalPot - share * winners.length;
+
   winners.forEach(w => {
     w.player.stack += share;
   });
+  if (remainder > 0) {
+    winners[0].player.stack += remainder;
+  }
 
   const winnersDesc = winners
     .map(w => `${w.player.name || 'Игрок'} — ${w.text}`)
@@ -457,15 +642,16 @@ function resolveShowdown() {
   table.players.forEach(p => {
     const winRec = winners.find(w => w.player.id === p.id);
     if (winRec) {
-      p.message = `Вы выиграли с комбинацией: ${winRec.text}. Банк: ${share}`;
+      p.message = `Вы выиграли с комбинацией: ${winRec.text}. Банк: ${share + (winners[0].player.id === p.id ? remainder : 0)}`;
     } else {
-      p.message = `Победитель(и): ${winnersDesc}`;
+      p.message = `Победитель(и): ${winnersDesc}. Общий банк: ${totalPot}`;
     }
   });
 
-  console.log('Showdown winners:', winnersDesc, 'share each:', share);
+  console.log('Showdown winners:', winnersDesc, 'totalPot:', totalPot);
   table.mainPot = 0;
   table.streetPot = 0;
+  table.lastLogMessage = `Шоудаун. Победитель(и): ${winnersDesc}. Банк: ${totalPot}`;
 }
 
 // ================= Авто-переход улиц =================
@@ -482,7 +668,6 @@ function autoAdvanceIfReady() {
 
   if (!isBettingRoundComplete()) return;
 
-  // завершился раунд торговли → добавляем банк улицы в общий
   collapseStreetPot();
 
   if (table.stage === 'preflop') {
@@ -510,6 +695,7 @@ function getPublicStateFor(playerId) {
       : null;
 
   const totalPot = table.mainPot + table.streetPot;
+  const btnPlayer = table.players[table.buttonIndex] || null;
 
   return {
     stage: table.stage,
@@ -521,12 +707,15 @@ function getPublicStateFor(playerId) {
     communityCards: table.communityCards,
     currentBet: table.currentBet,
     minRaise: table.minRaise,
+    buttonPlayerId: btnPlayer ? btnPlayer.id : null,
+    tableMessage: table.lastLogMessage || null,
     players: table.players.map(p => ({
       id: p.id,
       name: p.name,
       stack: p.stack,
       inHand: p.inHand && !p.hasFolded,
-      betThisStreet: p.betThisStreet
+      betThisStreet: p.betThisStreet,
+      isPaused: !!p.isPaused
     })),
     yourCards: player ? player.hand : [],
     currentTurn: current,
@@ -556,7 +745,7 @@ function advanceTurn() {
   for (let i = 1; i <= len; i++) {
     const idx = (table.currentTurnIndex + i) % len;
     const p = table.players[idx];
-    if (p.inHand && !p.hasFolded) {
+    if (p.inHand && !p.hasFolded && !p.isPaused && p.stack > 0) {
       table.currentTurnIndex = idx;
       return;
     }
@@ -573,7 +762,7 @@ function handlePlayerAction(playerId, actionType) {
 
   const player = table.players[idx];
 
-  if (!player.inHand || player.hasFolded) return;
+  if (!player.inHand || player.hasFolded || player.isPaused) return;
   if (table.stage === 'waiting' || table.stage === 'showdown') return;
 
   if (table.currentTurnIndex === null || table.players[table.currentTurnIndex].id !== playerId) {
@@ -581,11 +770,15 @@ function handlePlayerAction(playerId, actionType) {
     return;
   }
 
+  // помечаем, что игрок сам что-то нажимал в этой раздаче
+  player.hasClickedThisHand = true;
+
   // FOLD
   if (actionType === 'fold') {
     player.hasFolded = true;
     player.inHand = false;
     player.hasActedThisStreet = true;
+    table.lastLogMessage = `Игрок ${player.name} сделал фолд`;
 
     const actives = activePlayers();
     if (actives.length <= 1) {
@@ -601,8 +794,9 @@ function handlePlayerAction(playerId, actionType) {
     const toCall = table.currentBet - player.betThisStreet;
 
     if (toCall <= 0) {
-      // это check
+      // check
       player.hasActedThisStreet = true;
+      table.lastLogMessage = `Игрок ${player.name} чек`;
       autoAdvanceIfReady();
       if (table.stage !== 'showdown' && !isBettingRoundComplete()) {
         advanceTurn();
@@ -617,6 +811,7 @@ function handlePlayerAction(playerId, actionType) {
     player.betThisStreet += pay;
     table.streetPot += pay;
     player.hasActedThisStreet = true;
+    table.lastLogMessage = `Игрок ${player.name} колл ${pay}`;
 
     autoAdvanceIfReady();
     if (table.stage !== 'showdown' && !isBettingRoundComplete()) {
@@ -630,7 +825,7 @@ function handlePlayerAction(playerId, actionType) {
     const minRaise = table.minRaise || 10;
 
     if (table.currentBet === 0) {
-      // Первый бет на улице
+      // первый бет на улице
       const toBet = Math.min(player.stack, 10);
       if (toBet <= 0) return;
 
@@ -641,10 +836,11 @@ function handlePlayerAction(playerId, actionType) {
       table.currentBet = player.betThisStreet;
       table.minRaise = 10;
       player.hasActedThisStreet = true;
+      table.lastLogMessage = `Игрок ${player.name} бет ${toBet}`;
 
       // остальные должны принять решение
       for (const p of table.players) {
-        if (p.id !== player.id && p.inHand && !p.hasFolded) {
+        if (p.id !== player.id && p.inHand && !p.hasFolded && !p.isPaused && p.stack > 0) {
           p.hasActedThisStreet = false;
         }
       }
@@ -652,7 +848,7 @@ function handlePlayerAction(playerId, actionType) {
       advanceTurn();
       return;
     } else {
-      // РЕЙЗ на +10 поверх текущей ставки
+      // рейз на +10 поверх текущей ставки
       const targetBet = table.currentBet + minRaise;
       const toPay = targetBet - player.betThisStreet;
       const pay = Math.min(player.stack, toPay);
@@ -665,10 +861,10 @@ function handlePlayerAction(playerId, actionType) {
       table.currentBet = player.betThisStreet;
       table.minRaise = minRaise;
       player.hasActedThisStreet = true;
+      table.lastLogMessage = `Игрок ${player.name} рейз до ${player.betThisStreet}`;
 
-      // остальные снова принимают решение
       for (const p of table.players) {
-        if (p.id !== player.id && p.inHand && !p.hasFolded) {
+        if (p.id !== player.id && p.inHand && !p.hasFolded && !p.isPaused && p.stack > 0) {
           p.hasActedThisStreet = false;
         }
       }
@@ -702,44 +898,57 @@ io.on('connection', (socket) => {
       hasFolded: false,
       betThisStreet: 0,
       hasActedThisStreet: false,
-      message: null
+      message: null,
+      isPaused: false,
+      hasClickedThisHand: false
     };
 
     table.players.push(player);
     console.log(`Player joined: ${name}`);
+    pushSnapshot('player joined', table);
     broadcastGameState();
   });
 
   socket.on('startHand', () => {
-  console.log('startHand requested');
-  startHand();
-  pushSnapshot('after startHand');
-  broadcastGameState();
+    console.log('startHand requested');
+    startHand();
+    pushSnapshot('after startHand', table);
+    broadcastGameState();
   });
 
+  // оставим nextStage как отладочную кнопку (можно скрыть на фронте)
   socket.on('nextStage', () => {
-  console.log('nextStage requested');
-  if (table.stage === 'showdown') {
-    if (table.players.length > 0) {
-      table.buttonIndex = (table.buttonIndex + 1) % table.players.length;
+    console.log('nextStage requested');
+    if (table.stage === 'showdown') {
+      resetHandState();
+      pushSnapshot('after manual resetHandState (new hand)', table);
+    } else {
+      autoAdvanceIfReady();
+      pushSnapshot('after manual nextStage/autoAdvanceIfReady', table);
     }
-    resetHandState();
-    pushSnapshot('after resetHandState (new hand)');
-  } else {
-    autoAdvanceIfReady();
-    pushSnapshot('after manual nextStage/autoAdvanceIfReady');
-  }
-  broadcastGameState();
+    broadcastGameState();
   });
 
   socket.on('action', (data) => {
-  const type = data && data.type;
-  console.log('action from', socket.id, type);
-  if (!type) return;
+    const type = data && data.type;
+    console.log('action from', socket.id, type);
+    if (!type) return;
 
-  handlePlayerAction(socket.id, type);
-  pushSnapshot(`after action ${type} from ${socket.id}`);
-  broadcastGameState();
+    handlePlayerAction(socket.id, type);
+    pushSnapshot(`after action ${type} from ${socket.id}`, table);
+    broadcastGameState();
+    scheduleTurnTimer();
+  });
+
+  socket.on('setPlaying', (data) => {
+    const playing = !!(data && data.playing);
+    const player = table.players.find(p => p.id === socket.id);
+    if (!player) return;
+
+    player.isPaused = !playing;
+    console.log(`Player ${player.name} setPlaying=${playing}`);
+    pushSnapshot('setPlaying', table);
+    broadcastGameState();
   });
 
   socket.on('disconnect', () => {
@@ -748,6 +957,8 @@ io.on('connection', (socket) => {
     if (idx >= 0) {
       table.players.splice(idx, 1);
       if (table.players.length === 0) {
+        clearTurnTimer();
+        clearNextHandTimer();
         resetHandState();
       } else {
         const actives = activePlayers();
@@ -755,6 +966,7 @@ io.on('connection', (socket) => {
           goToShowdown();
         }
       }
+      pushSnapshot('player disconnected', table);
       broadcastGameState();
     }
   });
