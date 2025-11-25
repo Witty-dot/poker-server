@@ -154,6 +154,40 @@
       border: 1px solid #ff4b4b;
       box-shadow: 0 0 0 1px rgba(255, 75, 75, 0.7);
     }
+
+    /* Крупье и сайд-поты */
+    .dealer-inline-label {
+      color: #ffd86b;
+      font-weight: 600;
+    }
+    .dealer-message {
+      margin-top: 4px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      background: #15120a;
+      border-left: 3px solid #ffd86b;
+      font-size: 12px;
+      white-space: pre-wrap;
+      color: #f7f0d0;
+    }
+    .sidepots-box {
+      margin-top: 8px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      background: #151515;
+      border: 1px dashed #555;
+      font-size: 12px;
+    }
+    .sidepots-box strong {
+      color: #f0e0b0;
+    }
+    .sidepot-line {
+      margin-top: 2px;
+    }
+    .sidepot-line-pot {
+      color: #ffb86b;
+      font-weight: 500;
+    }
   </style>
 </head>
 <body>
@@ -187,8 +221,17 @@
 
     <div class="table-info">
       <div><strong>Стадия:</strong> <span id="stage">waiting</span></div>
-      <div><strong>Крупье:</strong> <span id="tableMessage">—</span></div>
-      <div><strong>Общий банк (пред. улицы):</strong> <span id="mainPot">0</span> фишек</div>
+      <div>
+        <strong class="dealer-inline-label">Крупье:</strong>
+        <span id="tableMessage">—</span>
+      </div>
+
+      <!-- Детальная речь крупье -->
+      <div id="dealerDetailsWrapper" class="dealer-message" style="display:none;">
+        <div id="dealerDetailsBox"><small>—</small></div>
+      </div>
+
+      <div style="margin-top:6px;"><strong>Общий банк (пред. улицы):</strong> <span id="mainPot">0</span> фишек</div>
       <div><strong>Банк текущей улицы:</strong> <span id="streetPot">0</span> фишек</div>
       <div><strong>Суммарный банк:</strong> <span id="totalPot">0</span> фишек</div>
       <div><strong>Блайнды:</strong> <span id="blinds">10 / 20</span></div>
@@ -197,6 +240,12 @@
       <div style="margin-top:4px;">
         <strong>Борд:</strong>
         <span id="boardCards"><small>—</small></span>
+      </div>
+
+      <!-- Видимые сайд-поты / банки раздачи -->
+      <div id="sidePotsWrapper" class="sidepots-box" style="display:none;">
+        <strong>Банки раздачи (основной и сайд-поты):</strong>
+        <div id="potDetailsBox"></div>
       </div>
     </div>
 
@@ -262,6 +311,11 @@
     const yourMessageDiv = document.getElementById('yourMessage');
     const yourBestHandDiv = document.getElementById('yourBestHand');
     const playersList = document.getElementById('playersList');
+
+    const dealerDetailsWrapper = document.getElementById('dealerDetailsWrapper');
+    const dealerDetailsBox = document.getElementById('dealerDetailsBox');
+    const sidePotsWrapper = document.getElementById('sidePotsWrapper');
+    const potDetailsBox = document.getElementById('potDetailsBox');
 
     let lastState = null;
     let turnTimerInterval = null;  // интервал обновления обратного отсчёта
@@ -420,6 +474,29 @@
       stageSpan.textContent = state.stage || 'waiting';
       tableMessageSpan.textContent = state.tableMessage || '—';
 
+      // Детальная речь крупье (dealerDetails)
+      if (state.dealerDetails) {
+        dealerDetailsWrapper.style.display = 'block';
+        dealerDetailsBox.textContent = state.dealerDetails; // переносы строк сохраняются
+      } else {
+        dealerDetailsWrapper.style.display = 'none';
+        dealerDetailsBox.innerHTML = '<small>—</small>';
+      }
+
+      // Пот/сайд-поты (potDetails)
+      if (Array.isArray(state.potDetails) && state.potDetails.length > 0) {
+        sidePotsWrapper.style.display = 'block';
+        potDetailsBox.innerHTML = state.potDetails.map(line => {
+          const trimmed = String(line).trim();
+          const isPot = trimmed.startsWith('Пот ');
+          const cls = 'sidepot-line' + (isPot ? ' sidepot-line-pot' : '');
+          return '<div class="' + cls + '">' + escapeHtml(line) + '</div>';
+        }).join('');
+      } else {
+        sidePotsWrapper.style.display = 'none';
+        potDetailsBox.innerHTML = '<small>—</small>';
+      }
+
       mainPotSpan.textContent = state.mainPot != null ? state.mainPot : 0;
       streetPotSpan.textContent = state.streetPot != null ? state.streetPot : 0;
       totalPotSpan.textContent = state.totalPot != null ? state.totalPot : 0;
@@ -550,9 +627,6 @@
             .map(c => '<span class="pill pill-card combo">' + escapeHtml(c) + '</span>')
             .join('');
 
-          // здесь уже должно быть ровно N карт:
-          // Старшая карта → 1
-          // Пара → 2, Сет → 3, Каре → 4, Стрит/Флэш/ФХ/Стрит-флэш → 5
           yourBestHandDiv.innerHTML =
             `<span style="color:#ffd86b;">${escapeHtml(type)}</span>` +
             (cardsHtml ? ' → ' + cardsHtml : '');
@@ -624,7 +698,7 @@
         return ({
           '&': '&amp;',
           '<': '&lt;',
-          '>': '&gt;',
+          '>': '&lt;',
           '"': '&quot;',
           "'": '&#39;'
         })[m];
