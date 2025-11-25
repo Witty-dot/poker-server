@@ -213,6 +213,7 @@
       <button id="foldBtn" disabled>Фолд</button>
       <button id="callBtn" disabled>Чек / Колл</button>
       <button id="betBtn" disabled>Бет / Рейз 10</button>
+      <button id="allinBtn" disabled>Олл-ин</button>
     </div>
 
     <div id="errorBox" class="error"></div>
@@ -290,6 +291,7 @@
     const foldBtn = document.getElementById('foldBtn');
     const callBtn = document.getElementById('callBtn');
     const betBtn = document.getElementById('betBtn');
+    const allinBtn = document.getElementById('allinBtn');
     const playPauseBtn = document.getElementById('playPauseBtn');
     const nameInput = document.getElementById('name');
 
@@ -341,6 +343,7 @@
         foldBtn.disabled = true;
         callBtn.disabled = true;
         betBtn.disabled = true;
+        allinBtn.disabled = true;
         playPauseBtn.disabled = true;
         hintBox.textContent = '';
         clearTurnTimerInterval();
@@ -414,6 +417,13 @@
       console.log('bet/raise click');
       errorBox.textContent = '';
       if (socket) socket.emit('action', { type: 'bet' });
+    });
+
+    allinBtn.addEventListener('click', () => {
+      if (!lastState) return;
+      console.log('all-in click');
+      errorBox.textContent = '';
+      if (socket) socket.emit('action', { type: 'allin' });
     });
 
     playPauseBtn.addEventListener('click', () => {
@@ -615,7 +625,6 @@
         }
 
         // ===== ТЕКУЩАЯ ЛУЧШАЯ КОМБИНАЦИЯ ИГРОКА =====
-        // Сервер отдаёт: yourBestHandType (строка) и yourBestHandCards (массив N карт комбо)
         if (state.yourBestHandType) {
           const type = state.yourBestHandType;
           const cards = Array.isArray(state.yourBestHandCards)
@@ -651,6 +660,7 @@
       foldBtn.disabled = !canAct;
       callBtn.disabled = !canAct;
       betBtn.disabled = !canAct;
+      allinBtn.disabled = !canAct || !me || me.stack <= 0;
 
       // таймер: только если наш ход и есть дедлайн
       if (canAct && state.turnDeadline) {
@@ -677,11 +687,11 @@
       if (toCall <= 0) {
         callBtn.textContent = 'Чек';
         betBtn.textContent = 'Бет 10';
-        hintBox.textContent = 'Ваш ход. Можно чекнуть или открыть торговлю ставкой 10 фишек.';
+        hintBox.textContent = 'Ваш ход. Можно чекнуть, поставить 10 фишек или уйти в олл-ин.';
       } else {
         callBtn.textContent = 'Колл ' + toCall;
         betBtn.textContent = 'Рейз до ' + (currentBet + 10);
-        hintBox.textContent = 'Ваш ход. Для колла добавьте ' + toCall + ' фишек или повысьте ставку на 10.';
+        hintBox.textContent = 'Ваш ход. Можно заколлировать ' + toCall + ' фишек, повысить на 10 или уйти в олл-ин.';
       }
     }
 
@@ -698,7 +708,7 @@
         return ({
           '&': '&amp;',
           '<': '&lt;',
-          '>': '&lt;',
+          '>': '&gt;',
           '"': '&quot;',
           "'": '&#39;'
         })[m];
