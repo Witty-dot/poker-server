@@ -201,7 +201,9 @@ let table = {
   players: [],          // { id, name, stack, hand, inHand, hasFolded, betThisStreet, hasActedThisStreet, message }
   deck: [],
   communityCards: [],
-  pot: 0,
+  // разделяем банк:
+  mainPot: 0,           // общий банк по всем завершённым раундам
+  streetPot: 0,         // банк текущего раунда торговли
   stage: 'waiting',     // waiting | preflop | flop | turn | river | showdown
   smallBlind: 10,
   bigBlind: 20,
@@ -218,7 +220,8 @@ function activePlayers() {
 function resetHandState() {
   table.deck = [];
   table.communityCards = [];
-  table.pot = 0;
+  table.mainPot = 0;
+  table.streetPot = 0;
   table.stage = 'waiting';
   table.currentBet = 0;
   table.minRaise = 10;
@@ -233,6 +236,11 @@ function resetHandState() {
   });
 }
 
+function collapseStreetPot() {
+  table.mainPot += table.streetPot;
+  table.streetPot = 0;
+}
+
 // ================= Раздача =================
 
 function startHand() {
@@ -243,7 +251,8 @@ function startHand() {
 
   table.deck = createDeck();
   table.communityCards = [];
-  table.pot = 0;
+  table.mainPot = 0;
+  table.streetPot = 0;
   table.stage = 'preflop';
   table.currentBet = 0;
   table.minRaise = 10;
@@ -280,7 +289,7 @@ function startHand() {
     const blind = Math.min(player.stack, amount);
     player.stack -= blind;
     player.betThisStreet += blind;
-    table.pot += blind;
+    table.streetPot += blind;   // блайнды — в банк текущего раунда (префлоп)
   }
 
   takeBlind(sbIndex, table.smallBlind);
@@ -290,7 +299,7 @@ function startHand() {
   table.minRaise = 10;
   table.currentTurnIndex = utgIndex;
 
-  console.log('Hand started. Pot:', table.pot, 'Stage:', table.stage);
+  console.log('Hand started. StreetPot:', table.streetPot, 'Stage:', table.stage);
 }
 
 function dealCommunity(count) {
@@ -332,7 +341,6 @@ function startNewStreet(newStage) {
   }
 }
 
-// все ли активные уравняли ставку/сходили
 function isBettingRoundComplete() {
   const actives = activePlayers();
   if (actives.length <= 1) return true;
@@ -342,6 +350,8 @@ function isBettingRoundComplete() {
 // ================= Шоудаун =================
 
 function goToShowdown() {
+  // на всякий случай сгребаем банк раунда в общий
+  collapseStreetPot();
   table.stage = 'showdown';
   table.currentTurnIndex = null;
   resolveShowdown();
@@ -349,19 +359,26 @@ function goToShowdown() {
 
 function resolveShowdown() {
   const contenders = activePlayers();
-  if (contenders.length === 0) return;
+  const totalPot = table.mainPot + table.streetPot; // streetPot тут уже должен быть 0, но на всякий случай складываем
+
+  if (contenders.length === 0) {
+    table.mainPot = 0;
+    table.streetPot = 0;
+    return;
+  }
 
   if (contenders.length === 1) {
     const winner = contenders[0];
-    winner.stack += table.pot;
-    winner.message = `Вы выиграли без вскрытия, банк: ${table.pot}`;
+    winner.stack += totalPot;
+    winner.message = `Вы выиграли без вскрытия, банк: ${totalPot}`;
     table.players.forEach(p => {
       if (p.id !== winner.id) {
         p.message = `Игрок ${winner.name} забрал банк без вскрытия`;
       }
     });
-    console.log(`Winner by fold: ${winner.name}, +${table.pot}`);
-    table.pot = 0;
+    console.log(`Winner by fold: ${winner.name}, +${totalPot}`);
+    table.mainPot = 0;
+    table.streetPot = 0;
     return;
   }
 
@@ -375,7 +392,7 @@ function resolveShowdown() {
   const best = Math.max(...results.map(r => r.score));
   const winners = results.filter(r => r.score === best);
 
-  const share = Math.floor(table.pot / winners.length);
+  const share = Math.floor(totalPot / winners.length);
   winners.forEach(w => {
     w.player.stack += share;
   });
@@ -394,7 +411,8 @@ function resolveShowdown() {
   });
 
   console.log('Showdown winners:', winnersDesc, 'share each:', share);
-  table.pot = 0;
+  table.mainPot = 0;
+  table.streetPot = 0;
 }
 
 // ================= Авто-переход улиц =================
@@ -410,6 +428,9 @@ function autoAdvanceIfReady() {
   }
 
   if (!isBettingRoundComplete()) return;
+
+  // завершился раунд торговли → добавляем банк улицы в общий
+  collapseStreetPot();
 
   if (table.stage === 'preflop') {
     dealCommunity(3);
@@ -435,9 +456,13 @@ function getPublicStateFor(playerId) {
       ? table.players[table.currentTurnIndex].id
       : null;
 
+  const totalPot = table.mainPot + table.streetPot;
+
   return {
     stage: table.stage,
-    pot: table.pot,
+    mainPot: table.mainPot,
+    streetPot: table.streetPot,
+    totalPot,
     smallBlind: table.smallBlind,
     bigBlind: table.bigBlind,
     communityCards: table.communityCards,
@@ -537,7 +562,7 @@ function handlePlayerAction(playerId, actionType) {
 
     player.stack -= pay;
     player.betThisStreet += pay;
-    table.pot += pay;
+    table.streetPot += pay;
     player.hasActedThisStreet = true;
 
     autoAdvanceIfReady();
@@ -558,7 +583,7 @@ function handlePlayerAction(playerId, actionType) {
 
       player.stack -= toBet;
       player.betThisStreet += toBet;
-      table.pot += toBet;
+      table.streetPot += toBet;
 
       table.currentBet = player.betThisStreet;
       table.minRaise = 10;
@@ -582,7 +607,7 @@ function handlePlayerAction(playerId, actionType) {
 
       player.stack -= pay;
       player.betThisStreet += pay;
-      table.pot += pay;
+      table.streetPot += pay;
 
       table.currentBet = player.betThisStreet;
       table.minRaise = minRaise;
@@ -590,7 +615,7 @@ function handlePlayerAction(playerId, actionType) {
 
       // остальные снова принимают решение
       for (const p of table.players) {
-        if (p.id !== player.id && p.inHand && !p.hasFoldled) { // ОПЕЧАТКА ИСПРАВИТЬ: hasFoldled -> hasFolded
+        if (p.id !== player.id && p.inHand && !p.hasFolded) {
           p.hasActedThisStreet = false;
         }
       }
