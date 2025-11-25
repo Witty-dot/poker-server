@@ -359,10 +359,11 @@ function handleTurnTimeout() {
   const p = table.players[table.currentTurnIndex];
   if (!p || !p.inHand || p.hasFolded) return;
 
-  const needToCall = table.currentBet > p.betThisStreet;
+  const toCall = table.currentBet - p.betThisStreet;
+  const needToCall = toCall > 0;
 
   if (needToCall) {
-    // должен был реагировать на ставку -> автофолд + пауза
+    // есть ставка против игрока -> автофолд + пауза
     p.hasFolded = true;
     p.inHand = false;
     p.isPaused = true;
@@ -382,14 +383,20 @@ function handleTurnTimeout() {
     broadcastGameState();
     scheduleTurnTimer();
   } else {
-    // можно было чекнуть -> авто-check, НЕ считаем как клик игрока
-    p.hasActedThisStreet = true;
-    table.lastLogMessage = `Игрок ${p.name} не сделал ход, авто-check`;
+    // можно было чекнуть -> делаем авто-check
+    // используем ту же логику, что и при ручном "Чек",
+    // но не считаем это кликом игрока
+    const prevClicked = p.hasClickedThisHand;
 
-    autoAdvanceIfReady();
-    if (table.stage !== 'showdown' && !isBettingRoundComplete()) {
-      advanceTurn();
-    }
+    // этот вызов выполнит обычный "чек":
+    // выставит hasActedThisStreet, сдвинет ход, autoAdvanceIfReady и т.д.
+    handlePlayerAction(p.id, 'call');
+
+    // возвращаем флаг "игрок сам нажимал" в исходное состояние
+    p.hasClickedThisHand = prevClicked;
+
+    // перезапишем сообщение стола, что это именно авто-check по таймеру
+    table.lastLogMessage = `Игрок ${p.name} не сделал ход, авто-check`;
 
     pushSnapshot('after auto-check timeout', table);
     broadcastGameState();
