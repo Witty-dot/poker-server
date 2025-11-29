@@ -26,7 +26,22 @@
           </nav>
 
           <div class="header-cta">
-            <a href="login.html" class="btn btn-ghost">Войти</a>
+            <!-- Вход как иконка в стиле Midnight Black -->
+            <a href="login.html" class="btn btn-ghost btn-icon" aria-label="Войти">
+              <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+                <!-- голова -->
+                <circle cx="12" cy="9" r="3.2" fill="currentColor" />
+                <!-- плечи -->
+                <path
+                  d="M6 18.5c0-2.6 2.6-4.5 6-4.5s6 1.9 6 4.5v1h-12v-1z"
+                  fill="currentColor"
+                  opacity="0.9"
+                />
+                <!-- лёгкое неоновое кольцо вокруг (поддерживает currentColor) -->
+                <circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.1" opacity="0.7" />
+              </svg>
+            </a>
+
             <a href="registration.html" class="btn btn-primary">Регистрация</a>
           </div>
         </div>
