@@ -98,7 +98,7 @@ export const SOUND_DEFS = {
 export class SoundManager {
   constructor(options = {}) {
     // Базовый путь к /sounds
-    this.basePath = options.basePath || '/sounds';
+    this.basePath = options.basePath || '/sound';
 
     // Профиль громкости композитных звуков (normal / quiet / loud)
     this.profile = options.profile || 'normal';
