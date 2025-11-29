@@ -479,8 +479,8 @@ function handleTurnTimeout() {
 
     advanceTurn();
     pushSnapshot('after auto-fold timeout', table);
-    broadcastGameState();
     scheduleTurnTimer();
+    broadcastGameState();
   } else {
     // можно было чекнуть -> используем ту же логику, что и ручной чек,
     // но не считаем это кликом игрока
@@ -493,8 +493,8 @@ function handleTurnTimeout() {
     table.lastLogMessage = `Игрок ${p.name} не сделал ход, авто-check`;
 
     pushSnapshot('after auto-check timeout', table);
-    broadcastGameState();
     scheduleTurnTimer();
+    broadcastGameState();
   }
 }
 
@@ -543,17 +543,9 @@ function startHand() {
     p.totalBet = 0;
   });
 
-  // только активным (не на паузе и с фишками) включаем участие и раздаём карты
+  // только активным (не на паузе и с фишками) включаем участие
   for (const idx of activeSeats) {
     table.players[idx].inHand = true;
-  }
-
-  for (let r = 0; r < 2; r++) {
-    for (const idx of activeSeats) {
-      const p = table.players[idx];
-      const card = dealCards(table.deck, 1)[0];
-      if (card) p.hand.push(card);
-    }
   }
 
   // убеждаемся, что buttonIndex стоит на живом игроке
@@ -584,6 +576,15 @@ function startHand() {
 
   if (sbIndex != null) takeBlind(sbIndex, table.smallBlind);
   if (bbIndex != null) takeBlind(bbIndex, table.bigBlind);
+
+  // после выставления блайндов сдаём карманные карты
+  for (let r = 0; r < 2; r++) {
+    for (const idx of activeSeats) {
+      const p = table.players[idx];
+      const card = dealCards(table.deck, 1)[0];
+      if (card) p.hand.push(card);
+    }
+  }
 
   table.currentBet = table.bigBlind;
   table.minRaise = 10;
@@ -1231,26 +1232,32 @@ function handlePlayerAction(playerId, action) {
       player.totalBet = (player.totalBet || 0) + pay;
       table.streetPot += pay;
 
-      // текущая ставка раунда — максимум по столу
+      const oldBet = table.currentBet;
       table.currentBet = Math.max(table.currentBet, player.betThisStreet);
-      const raiseSize = table.currentBet - table.currentBet; // для аккуратности можно было бы хранить старое
-      table.minRaise = minRaise; // оставляем как есть, чтобы не усложнять
+      const raiseSize = table.currentBet - oldBet;
+      if (raiseSize > 0) {
+        table.minRaise = Math.max(table.minRaise || 10, raiseSize);
+      }
 
       player.hasActedThisStreet = true;
 
-      if (player.stack === 0 && player.betThisStreet > table.currentBet) {
+      if (player.stack === 0 && player.betThisStreet > oldBet) {
         table.lastLogMessage = `Игрок ${player.name} олл-ин рейз до ${player.betThisStreet} фишек`;
       } else {
         table.lastLogMessage = `Игрок ${player.name} рейз до ${player.betThisStreet}`;
       }
 
+      // остальные снова должны принять решение
       for (const p of table.players) {
         if (p.id !== player.id && p.inHand && !p.hasFolded && !p.isPaused && p.stack > 0) {
           p.hasActedThisStreet = false;
         }
       }
 
-      advanceTurn();
+      autoAdvanceIfReady();
+      if (table.stage !== 'showdown' && !isBettingRoundComplete()) {
+        advanceTurn();
+      }
       return;
     }
   }
@@ -1308,6 +1315,7 @@ io.on('connection', (socket) => {
       autoAdvanceIfReady();
       pushSnapshot('after manual nextStage/autoAdvanceIfReady', table);
     }
+    scheduleTurnTimer();
     broadcastGameState();
   });
 
@@ -1318,8 +1326,8 @@ io.on('connection', (socket) => {
 
     handlePlayerAction(socket.id, data);
     pushSnapshot(`after action ${type} from ${socket.id}`, table);
-    broadcastGameState();
     scheduleTurnTimer();
+    broadcastGameState();
   });
 
   socket.on('setPlaying', (data) => {
