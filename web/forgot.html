@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Восстановление доступа – Midnight Black Poker</title>
+
+  <!-- ВАЖНО: правильный путь -->
+  <link rel="stylesheet" href="/css/main.css" />
+</head>
+<body>
+
+<div class="auth-page">
+
+  <!-- HEADER -->
+  <header>
+    <div class="container">
+      <div class="header-inner">
+
+        <div class="logo-wrap" onclick="location.href='/'">
+          <div class="logo-mark"></div>
+          <div>
+            <div class="logo-text-main">MIDNIGHT BLACK</div>
+            <div class="logo-text-sub">POKER ROOM</div>
+          </div>
+        </div>
+
+        <nav>
+          <a href="/#tables">Столы</a>
+          <a href="/#security">Безопасность</a>
+          <a href="/#apps">Приложения</a>
+          <a href="/#support">Поддержка</a>
+        </nav>
+
+        <div class="header-cta">
+          <a href="/login.html" class="btn btn-ghost">Войти</a>
+          <a href="/registration.html" class="btn btn-primary">Регистрация</a>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTENT -->
+  <main class="auth-main">
+    <div class="auth-card">
+
+      <h1 class="auth-title">Восстановление доступа</h1>
+      <p class="auth-subtitle">
+        Укажите email, привязанный к вашему аккаунту Midnight Black.  
+        Мы отправим ссылку для сброса пароля.
+      </p>
+
+      <form class="auth-form">
+        <label>Email</label>
+        <input type="email" class="auth-input" required>
+
+        <div class="auth-actions">
+          <button type="submit" class="neon-btn">Отправить ссылку</button>
+        </div>
+      </form>
+
+      <div class="auth-switch">
+        Вспомнили пароль?  
+        <a href="/login.html">Войти</a>
+      </div>
+
+      <div class="auth-note">
+        Если письма нет несколько минут — проверьте папку «Спам».
+      </div>
+
+    </div>
+  </main>
+
+</div>
+
+</body>
+</html>

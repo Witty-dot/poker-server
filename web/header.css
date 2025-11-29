@@ -1,0 +1,81 @@
+.mb-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  backdrop-filter: blur(14px);
+  background: linear-gradient(
+    to bottom,
+    rgba(5,5,10,0.95),
+    rgba(5,5,10,0.88),
+    transparent
+  );
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  padding: 14px 0;
+}
+
+.mb-header-inner {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.mb-logo-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mb-logo-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: conic-gradient(from 210deg,#000,#141424,#6f7aff,#000,#141424);
+  box-shadow: 0 0 10px rgba(111,122,255,0.7);
+  position: relative;
+}
+.mb-logo-mark::after {
+  content: "";
+  position: absolute;
+  inset: 28%;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.45);
+  background: radial-gradient(circle, rgba(255,255,255,0.12), transparent);
+}
+
+.mb-logo-main {
+  font-weight: 650;
+  letter-spacing: 0.18em;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.mb-logo-sub {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.24em;
+  color: #9a9aad;
+}
+
+.mb-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mb-header-link {
+  color: #c7c7d5;
+  font-size: 13px;
+}
+
+.mb-header-btn {
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  color: #050509;
+  background: radial-gradient(circle at 0 0,#a8b0ff,#6f7aff 45%,#4a53f0 100%);
+  box-shadow: 0 0 24px rgba(111,122,255,0.65);
+}

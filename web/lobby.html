@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Midnight Black Poker – Lobby</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+    :root {
+      --bg-main:#050509;
+      --bg-secondary:#0c0c14;
+      --bg-elevated:#10101b;
+      --accent:#6f7aff;
+      --accent-soft:rgba(111,122,255,0.55);
+      --danger:#ff416f;
+      --success:#35d49b;
+      --text-main:#f5f5f5;
+      --text-muted:#9a9aad;
+      --border-soft:rgba(255,255,255,0.08);
+      --shadow-soft:0 0 50px rgba(0,0,0,0.9);
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    html,body { height:100%; }
+
+    body {
+      font-family: system-ui, -apple-system, "SF Pro Text", "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top,#151528 0,#050509 55%,#000 100%);
+      color: var(--text-main);
+      overflow-x:hidden;
+    }
+
+    .page {
+      min-height:100vh;
+      display:flex;
+      flex-direction:column;
+    }
+
+    /* HEADER */
+
+    .topbar {
+      padding:8px 12px 10px;
+      background:linear-gradient(to bottom,rgba(5,5,10,0.96),rgba(5,5,10,0.85),transparent);
+      border-bottom:1px solid rgba(255,255,255,0.05);
+      backdrop-filter:blur(14px);
+      position:sticky;
+      top:0;
+      z-index:10;
+    }
+
+    .topbar-row {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:16px;
+    }
+
+    .topbar-left {
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-width:0;
+    }
+
+    .logo-mark {
+      width:26px; height:26px; border-radius:50%;
+      background:conic-gradient(from 210deg,#000,#151528,#6f7aff,#000);
+      box-shadow:0 0 12px rgba(111,122,255,0.7);
+      position:relative;
+      flex-shrink:0;
+    }
+
+    .logo-mark::after {
+      content:"";
+      position:absolute; inset:26%;
+      border:1px solid rgba(255,255,255,0.4);
+      border-radius:50%;
+      background:radial-gradient(circle,rgba(255,255,255,0.2),transparent);
+    }
+
+    .topbar-title-block {
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width:0;
+    }
+
+    .topbar-main {
+      font-size:13px;
+      letter-spacing:0.18em;
+      text-transform:uppercase;
+      white-space:nowrap;
+    }
+
+    .topbar-sub {
+      font-size:11px;
+      letter-spacing:0.22em;
+      text-transform:uppercase;
+      color:var(--text-muted);
+      white-space:nowrap;
+    }
+
+    .topbar-right {
+      display:flex;
+      flex-direction:row;
+      gap:8px;
+      align-items:center;
+    }
+
+    .btn {
+      border-radius:999px;
+      padding:6px 12px;
+      font-size:12px;
+      border:1px solid transparent;
+      cursor:pointer;
+      background:transparent;
+      color:var(--text-main);
+      white-space:nowrap;
+      transition:0.15s;
+    }
+
+    .btn-ghost {
+      border-color:rgba(255,255,255,0.18);
+      color:var(--text-muted);
+      background:rgba(255,255,255,0.06);
+    }
+
+    .btn-ghost:hover {
+      border-color:rgba(255,255,255,0.35);
+      color:#fff;
+    }
+
+    .btn-primary {
+      border-color:rgba(53,212,155,0.65);
+      background:radial-gradient(circle at 0 0,rgba(53,212,155,0.35),#073321);
+      color:#e8fff7;
+      box-shadow:0 0 16px rgba(53,212,155,0.8);
+    }
+
+    .btn-icon {
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      font-size:14px;
+    }
+
+    .btn-primary:active {
+      transform:scale(0.96);
+      filter:brightness(1.3);
+      box-shadow:0 0 26px rgba(255,255,255,0.6);
+      transition:0.05s;
+    }
+
+    /* MAIN */
+
+    .main {
+      flex:1;
+      display:flex;
+      flex-direction:column;
+      padding:10px 12px 14px;
+      gap:10px;
+    }
+
+    /* FILTER STRIP */
+
+    .filter-bar {
+      border-radius:18px;
+      padding:10px;
+      background:rgba(5,5,15,0.94);
+      border:1px solid rgba(255,255,255,0.07);
+      box-shadow:var(--shadow-soft);
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+    }
+
+    .filter-group {
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+      align-items:center;
+    }
+
+    .filter-label {
+      font-size:11px;
+      color:var(--text-muted);
+      text-transform:uppercase;
+      letter-spacing:0.16em;
+    }
+
+    .chip {
+      border-radius:999px;
+      padding:4px 10px;
+      font-size:12px;
+      border:1px solid rgba(255,255,255,0.12);
+      background:rgba(12,12,24,0.95);
+      color:var(--text-muted);
+      cursor:pointer;
+      white-space:nowrap;
+    }
+
+    .chip-active {
+      border-color:var(--accent-soft);
+      background:radial-gradient(circle at 0 0,rgba(111,122,255,0.35),#1b1c42);
+      color:#f5f5ff;
+      box-shadow:0 0 16px rgba(111,122,255,0.75);
+    }
+
+    .chip-toggle {
+      border-color:rgba(255,255,255,0.1);
+      background:rgba(5,5,15,0.9);
+      color:var(--text-muted);
+      font-size:11px;
+    }
+
+    .chip-toggle.chip-active {
+      border-color:var(--success);
+      background:rgba(6,40,24,0.95);
+      color:#e5fff5;
+      box-shadow:0 0 12px rgba(53,212,155,0.7);
+    }
+
+    .spacer {
+      flex:1;
+    }
+
+    /* TABLE LIST */
+
+    .tables-wrap {
+      border-radius:20px;
+      background:radial-gradient(circle at top,#18182b,#050509 75%);
+      border:1px solid rgba(255,255,255,0.07);
+      box-shadow:var(--shadow-soft);
+      padding:10px 10px 6px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      min-height:0;
+    }
+
+    .tables-header {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      font-size:12px;
+      color:var(--text-muted);
+    }
+
+    .tables-header h2 {
+      font-size:13px;
+      text-transform:uppercase;
+      letter-spacing:0.18em;
+      color:#f5f5ff;
+    }
+
+    .tables-meta {
+      font-size:11px;
+    }
+
+    .tables-meta span {
+      opacity:0.8;
+    }
+
+    .table-list {
+      margin-top:4px;
+      border-radius:14px;
+      background:rgba(5,5,15,0.96);
+      border:1px solid rgba(255,255,255,0.08);
+      overflow:hidden;
+      min-height:80px;
+    }
+
+    .table-list-header,
+    .table-row {
+      display:grid;
+      grid-template-columns: minmax(0,1.4fr) minmax(0,1.1fr) minmax(0,1.1fr) minmax(0,1.1fr) minmax(0,1.4fr) minmax(0,0.9fr);
+      gap:6px;
+      padding:6px 10px;
+      align-items:center;
+      font-size:12px;
+    }
+
+    .table-list-header {
+      background:rgba(12,12,24,0.96);
+      border-bottom:1px solid rgba(255,255,255,0.08);
+      font-size:11px;
+      color:var(--text-muted);
+      text-transform:uppercase;
+      letter-spacing:0.14em;
+    }
+
+    .table-list-header div {
+      display:flex;
+      align-items:center;
+      gap:4px;
+      cursor:pointer;
+    }
+
+    .sort-arrow {
+      font-size:10px;
+      opacity:0.5;
+    }
+
+    .table-rows {
+      max-height:420px;
+      overflow-y:auto;
+    }
+
+    .table-row:nth-child(odd) {
+      background:rgba(8,8,18,0.95);
+    }
+
+    .table-row:nth-child(even) {
+      background:rgba(5,5,14,0.95);
+    }
+
+    .table-row:hover {
+      background:linear-gradient(to right,rgba(111,122,255,0.22),rgba(5,5,15,0.95));
+    }
+
+    .table-name-main {
+      font-size:12px;
+      font-weight:500;
+    }
+
+    .table-name-sub {
+      font-size:11px;
+      color:var(--text-muted);
+    }
+
+    .tag {
+      border-radius:999px;
+      padding:2px 8px;
+      font-size:10px;
+      border:1px solid rgba(255,255,255,0.16);
+      background:rgba(10,10,24,0.9);
+      color:var(--text-muted);
+    }
+
+    .tag-fast {
+      border-color:var(--accent-soft);
+      color:#e0e2ff;
+    }
+
+    .tag-vip {
+      border-color:goldenrod;
+      color:#ffeaa0;
+    }
+
+    .players-cell {
+      display:flex;
+      align-items:center;
+      gap:4px;
+      font-variant-numeric:tabular-nums;
+    }
+
+    .players-bar {
+      flex:1;
+      height:4px;
+      border-radius:999px;
+      background:rgba(255,255,255,0.09);
+      overflow:hidden;
+    }
+
+    .players-fill {
+      height:100%;
+      border-radius:999px;
+      background:linear-gradient(90deg,rgba(53,212,155,0.9),rgba(111,122,255,0.9));
+    }
+
+    .pill-status {
+      border-radius:999px;
+      padding:2px 8px;
+      font-size:11px;
+      border:1px solid rgba(255,255,255,0.14);
+      background:rgba(12,12,24,0.95);
+      color:var(--text-muted);
+      white-space:nowrap;
+    }
+
+    .pill-status-good {
+      border-color:rgba(53,212,155,0.7);
+      color:#caffde;
+    }
+
+    .pill-status-wait {
+      border-color:rgba(255,215,0,0.7);
+      color:#fff2b0;
+    }
+
+    .btn-seat {
+      border-radius:999px;
+      padding:6px 10px;
+      border:1px solid rgba(53,212,155,0.7);
+      background:radial-gradient(circle at 0 0,rgba(53,212,155,0.35),#073321);
+      color:#e8fff7;
+      cursor:pointer;
+      font-size:12px;
+      white-space:nowrap;
+    }
+
+    .btn-seat-full {
+      border-color:rgba(255,215,0,0.7);
+      background:radial-gradient(circle at 0 0,rgba(255,215,0,0.25),#4a3a05);
+      color:#fff7d0;
+    }
+
+    .btn-seat:active {
+      transform:scale(0.96);
+      filter:brightness(1.25);
+    }
+
+    .limit-text {
+      font-variant-numeric:tabular-nums;
+    }
+
+    .nowrap {
+      white-space:nowrap;
+    }
+
+    /* MOBILE: карточки */
+
+    @media (max-width:800px) {
+      .table-list-header {
+        display:none;
+      }
+
+      .table-row {
+        grid-template-columns: minmax(0,1fr);
+        gap:4px;
+        padding:8px 10px;
+      }
+
+      .table-row > div {
+        display:flex;
+        justify-content:space-between;
+      }
+
+      .tables-header h2 { font-size:12px; letter-spacing:0.14em; }
+    }
+
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <header class="topbar">
+    <div class="topbar-row">
+      <div class="topbar-left">
+        <div class="logo-mark"></div>
+        <div class="topbar-title-block">
+          <div class="topbar-main">MIDNIGHT BLACK</div>
+          <div class="topbar-sub">CASH TABLES</div>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <button class="btn btn-ghost btn-icon" id="btnSettings" aria-label="Настройки">⚙</button>
+        <button class="btn btn-primary" id="btnQuickSeat">Быстрая посадка</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- FILTERS -->
+    <section class="filter-bar">
+      <div class="filter-group">
+        <span class="filter-label">Лимит</span>
+        <button class="chip chip-active" data-limit="all">Все</button>
+        <button class="chip" data-limit="micro">NL 1–2 / 2–4</button>
+        <button class="chip" data-limit="low">NL 5–10 / 10–20</button>
+        <button class="chip" data-limit="mid">NL 25–50 / 50–100</button>
+        <button class="chip" data-limit="high">NL 100–200+</button>
+      </div>
+
+      <div class="filter-group">
+        <span class="filter-label">Тип стола</span>
+        <button class="chip chip-active" data-size="all">Все</button>
+        <button class="chip" data-size="6max">6-max</button>
+        <button class="chip" data-size="9max">9-max</button>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div class="filter-group">
+        <span class="filter-label">Фильтры</span>
+        <button class="chip chip-toggle" data-filter="only-free">Только со свободными местами</button>
+        <button class="chip chip-toggle" data-filter="fast">Только Fast</button>
+      </div>
+    </section>
+
+    <!-- TABLES LIST -->
+    <section class="tables-wrap">
+      <div class="tables-header">
+        <h2>СТОЛЫ CASH</h2>
+        <div class="tables-meta">
+          <span id="tablesCount">0 столов</span> ·
+          <span id="playersCount">0 игроков онлайн</span>
+        </div>
+      </div>
+
+      <div class="table-list">
+        <div class="table-list-header">
+          <div data-sort="name">Стол <span class="sort-arrow" data-sort-arrow="name">▲</span></div>
+          <div data-sort="stakes" class="nowrap">Блайнды</div>
+          <div data-sort="players" class="nowrap">Игроки</div>
+          <div data-sort="avgPot" class="nowrap">Средний банк</div>
+          <div data-sort="hph" class="nowrap">Руки/час</div>
+          <div>Действие</div>
+        </div>
+
+        <div class="table-rows" id="tableRows">
+          <!-- заполняется JS -->
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="/js/lobby.js"></script>
+</body>
+</html>

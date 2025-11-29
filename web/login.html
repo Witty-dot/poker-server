@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Midnight Black Poker – Вход</title>
+  <link rel="stylesheet" href="/css/main.css" />
+</head>
+<body>
+<div class="auth-page">
+
+  <!-- ХЕДЕР общий -->
+  <header>
+    <div class="container">
+      <div class="header-inner">
+
+        <a href="/" class="logo-wrap">
+          <div class="logo-mark"></div>
+          <div>
+            <div class="logo-text-main">MIDNIGHT BLACK</div>
+            <div class="logo-text-sub">POKER ROOM</div>
+          </div>
+        </a>
+
+        <nav>
+          <a href="/#tables">Столы</a>
+          <a href="/#security">Безопасность</a>
+          <a href="/#apps">Приложения</a>
+          <a href="/#support">Поддержка</a>
+        </nav>
+
+        <div class="header-cta">
+          <!-- Активная вкладка логина — яркая -->
+          <a href="/login.html" class="btn btn-primary">Войти</a>
+          <a href="/registration.html" class="btn btn-ghost">Регистрация</a>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- ОСНОВНОЙ КОНТЕНТ -->
+  <main class="auth-main">
+    <div class="auth-card-wrap">
+      <section class="auth-card">
+        <h1 class="auth-title">Вход</h1>
+        <p class="auth-subtitle">
+          Войдите в Midnight Black Poker, чтобы продолжить игру на всех устройствах.
+        </p>
+
+        <form id="loginForm" class="auth-form">
+          <label class="auth-label" for="login">Email или логин</label>
+          <input type="text" id="login" class="auth-input" required>
+
+          <label class="auth-label" for="loginPassword">Пароль</label>
+          <input type="password" id="loginPassword" class="auth-input" required>
+
+          <div class="auth-extra-row">
+            <a href="/forgot.html" class="auth-link">Забыли пароль?</a>
+          </div>
+
+          <button type="submit" class="auth-submit">Войти</button>
+        </form>
+
+        <div class="auth-switch">
+          Нет аккаунта?
+          <a href="/registration.html">Создать аккаунт</a>
+        </div>
+      </section>
+    </div>
+  </main>
+
+</div>
+
+<script>
+document.getElementById("loginForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+
+  const payload = {
+    login: document.getElementById("login").value.trim(),
+    password: document.getElementById("loginPassword").value.trim()
+  };
+
+  // TODO: заменить на реальный запрос к backend
+  console.log("Логин:", payload);
+});
+</script>
+</body>
+</html>

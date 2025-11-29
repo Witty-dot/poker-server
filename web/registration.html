@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Midnight Black Poker – Регистрация</title>
+  <link rel="stylesheet" href="/css/main.css" />
+</head>
+<body>
+<div class="auth-page">
+
+  <!-- ХЕДЕР такой же, как на login/forgot -->
+  <header>
+    <div class="container">
+      <div class="header-inner">
+
+        <a href="/" class="logo-wrap">
+          <div class="logo-mark"></div>
+          <div>
+            <div class="logo-text-main">MIDNIGHT BLACK</div>
+            <div class="logo-text-sub">POKER ROOM</div>
+          </div>
+        </a>
+
+        <nav>
+          <a href="/#tables">Столы</a>
+          <a href="/#security">Безопасность</a>
+          <a href="/#apps">Приложения</a>
+          <a href="/#support">Поддержка</a>
+        </nav>
+
+        <div class="header-cta">
+          <!-- Тут активна регистрация, логин — «серый» -->
+          <a href="/login.html" class="btn btn-ghost">Войти</a>
+          <a href="/registration.html" class="btn btn-primary">Регистрация</a>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- КАРТОЧКА РЕГИСТРАЦИИ -->
+  <main class="auth-main">
+    <div class="auth-card-wrap">
+      <section class="auth-card">
+        <h1 class="auth-title">Регистрация</h1>
+        <p class="auth-subtitle">
+          Создайте аккаунт Midnight Black Poker, чтобы играть на всех устройствах.
+        </p>
+
+        <form id="registrationForm" class="auth-form">
+          <label class="auth-label" for="regEmail">Email</label>
+          <input type="email" id="regEmail" class="auth-input" required />
+
+          <label class="auth-label" for="regLogin">Логин</label>
+          <input type="text" id="regLogin" class="auth-input" required />
+
+          <label class="auth-label" for="regPassword">Пароль</label>
+          <input type="password" id="regPassword" class="auth-input" required />
+
+          <label class="auth-label" for="regPasswordRepeat">Повторите пароль</label>
+          <input type="password" id="regPasswordRepeat" class="auth-input" required />
+
+          <div class="auth-actions">
+            <button type="submit" class="auth-submit">Создать аккаунт</button>
+          </div>
+        </form>
+
+        <div class="auth-switch">
+          Уже есть аккаунт?
+          <a href="/login.html">Войти</a>
+        </div>
+
+        <p class="auth-note">
+          Регистрируясь, вы подтверждаете, что вам есть 18 лет и вы согласны с
+          <a href="/privacy.html" class="auth-link">политикой конфиденциальности</a>
+          и
+          <a href="/terms.html" class="auth-link">пользовательским соглашением</a>.
+        </p>
+      </section>
+    </div>
+  </main>
+
+</div>
+
+<script>
+document.getElementById("registrationForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+
+  const payload = {
+    email: document.getElementById("regEmail").value.trim(),
+    login: document.getElementById("regLogin").value.trim(),
+    password: document.getElementById("regPassword").value.trim(),
+    passwordRepeat: document.getElementById("regPasswordRepeat").value.trim()
+  };
+
+  // TODO: заменить на реальный запрос к backend
+  console.log("Регистрация:", payload);
+});
+</script>
+</body>
+</html>
