@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Redirecting...</title>
+
+  <!-- Быстрый редирект -->
+  <meta http-equiv="refresh" content="0; url=web/index.html">
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0b0b0b;
+      color: #ccc;
+      text-align: center;
+      padding-top: 40px;
+    }
+    a {
+      color: #4fa3ff;
+    }
+  </style>
+</head>
+<body>
+  <h2>Redirecting to <a href="web/index.html">web/index.html</a>…</h2>
+
+  <!-- На случай, если meta-refresh заблокирован -->
+  <script>
+    window.location.href = "web/index.html";
+  </script>
+</body>
+</html>
