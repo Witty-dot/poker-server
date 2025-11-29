@@ -12,6 +12,7 @@ app.use(express.json());
 // ================= Debug-лог для анализа раздач =================
 
 const debugLog = [];
+const chatLog = []; // лог чата
 
 /**
  * Снимаем снапшот стола и пишем в лог.
@@ -461,8 +462,14 @@ function handleTurnTimeout() {
   const toCall = table.currentBet - p.betThisStreet;
   const needToCall = toCall > 0;
 
-  if (needToCall) {
-    // есть ставка против игрока -> автофолд + пауза
+  // Доп защита от кривых автофолдов:
+  // если по факту никто не ставил (у остальных betThisStreet == 0),
+  // то всегда трактуем как чек, даже если вдруг currentBet > 0.
+  const others = activePlayers().filter(pl => pl.id !== p.id);
+  const someoneBet = others.some(pl => pl.betThisStreet > 0 && !pl.hasFolded);
+
+  if (needToCall && someoneBet) {
+    // есть реальная ставка против игрока -> автофолд + пауза
     p.hasFolded = true;
     p.inHand = false;
     p.isPaused = true;
@@ -482,11 +489,10 @@ function handleTurnTimeout() {
     scheduleTurnTimer();
     broadcastGameState();
   } else {
-    // можно было чекнуть -> используем ту же логику, что и ручной чек,
-    // но не считаем это кликом игрока
+    // auto-check
     const prevClicked = p.hasClickedThisHand;
 
-    handlePlayerAction(p.id, { type: 'call', isAuto: true }); // внутри для toCall<=0 это чек
+    handlePlayerAction(p.id, { type: 'call', isAuto: true }); // для toCall<=0 внутри это чек
 
     p.hasClickedThisHand = prevClicked; // возвращаем флаг клика
 
@@ -577,7 +583,7 @@ function startHand() {
   if (sbIndex != null) takeBlind(sbIndex, table.smallBlind);
   if (bbIndex != null) takeBlind(bbIndex, table.bigBlind);
 
-  // после выставления блайндов сдаём карманные карты
+  // после блайндов сдаём карманные карты
   for (let r = 0; r < 2; r++) {
     for (const idx of activeSeats) {
       const p = table.players[idx];
@@ -940,6 +946,27 @@ function autoAdvanceIfReady() {
 
   if (!isBettingRoundComplete()) return;
 
+  // если ВСЕ активные игроки уже all-in (stack === 0),
+  // сразу докладываем все оставшиеся карты и идём в шоудаун
+  const allAllIn = actives.every(p => p.stack === 0);
+  if (allAllIn) {
+    collapseStreetPot();
+
+    if (table.stage === 'preflop') {
+      dealCommunity(3); // flop
+      dealCommunity(1); // turn
+      dealCommunity(1); // river
+    } else if (table.stage === 'flop') {
+      dealCommunity(1); // turn
+      dealCommunity(1); // river
+    } else if (table.stage === 'turn') {
+      dealCommunity(1); // river
+    }
+    goToShowdown();
+    return;
+  }
+
+  // обычный переход улиц
   collapseStreetPot();
 
   if (table.stage === 'preflop') {
@@ -1017,7 +1044,7 @@ function getPublicStateFor(playerId) {
     yourCards: player ? player.hand : [],
     currentTurn: current,
     yourTurn,
-    turnDeadline: yourTurnDeadline, // только если это твой ход, иначе null
+    turnDeadline: yourTurnDeadline,
     yourBestHandType,
     yourBestHandCards,
     message: player ? player.message || null : null
@@ -1096,6 +1123,7 @@ function handlePlayerAction(playerId, action) {
       goToShowdown();
     } else {
       advanceTurn();
+      scheduleTurnTimer();
     }
     return;
   }
@@ -1111,6 +1139,7 @@ function handlePlayerAction(playerId, action) {
       autoAdvanceIfReady();
       if (table.stage !== 'showdown' && !isBettingRoundComplete()) {
         advanceTurn();
+        scheduleTurnTimer();
       }
       return;
     }
@@ -1135,6 +1164,7 @@ function handlePlayerAction(playerId, action) {
     autoAdvanceIfReady();
     if (table.stage !== 'showdown' && !isBettingRoundComplete()) {
       advanceTurn();
+      scheduleTurnTimer();
     }
     return;
   }
@@ -1144,7 +1174,6 @@ function handlePlayerAction(playerId, action) {
     if (player.stack <= 0) return;
 
     const all = player.stack;
-    const oldBet = player.betThisStreet;
 
     player.stack = 0;
     player.betThisStreet += all;
@@ -1168,13 +1197,13 @@ function handlePlayerAction(playerId, action) {
     } else if (player.betThisStreet === table.currentBet) {
       table.lastLogMessage = `Игрок ${player.name} олл-ин на колл (${player.betThisStreet} фишек)`;
     } else {
-      // rare: олл-ин меньше текущей ставки, но допустим как short stack
       table.lastLogMessage = `Игрок ${player.name} олл-ин на ${player.betThisStreet} фишек (меньше текущей ставки)`;
     }
 
     autoAdvanceIfReady();
     if (table.stage !== 'showdown' && !isBettingRoundComplete()) {
       advanceTurn();
+      scheduleTurnTimer();
     }
     return;
   }
@@ -1212,6 +1241,7 @@ function handlePlayerAction(playerId, action) {
       }
 
       advanceTurn();
+      scheduleTurnTimer();
       return;
     } else {
       // рейз: amount трактуем как "рейз до", но не ниже currentBet + minRaise
@@ -1257,6 +1287,7 @@ function handlePlayerAction(playerId, action) {
       autoAdvanceIfReady();
       if (table.stage !== 'showdown' && !isBettingRoundComplete()) {
         advanceTurn();
+        scheduleTurnTimer();
       }
       return;
     }
@@ -1265,10 +1296,13 @@ function handlePlayerAction(playerId, action) {
   console.log('Unknown action:', actionType);
 }
 
-// ================= Socket.IO =================
+// ================= Socket.IO (игра + чат) =================
 
 io.on('connection', (socket) => {
   console.log('New player connected:', socket.id);
+
+  // отдаем историю чата новому подключению
+  socket.emit('chatHistory', chatLog);
 
   socket.on('joinTable', (data) => {
     const name = (data && data.playerName ? String(data.playerName) : '').trim() || 'Player';
@@ -1326,7 +1360,6 @@ io.on('connection', (socket) => {
 
     handlePlayerAction(socket.id, data);
     pushSnapshot(`after action ${type} from ${socket.id}`, table);
-    scheduleTurnTimer();
     broadcastGameState();
   });
 
@@ -1339,6 +1372,34 @@ io.on('connection', (socket) => {
     console.log(`Player ${player.name} setPlaying=${playing}`);
     pushSnapshot('setPlaying', table);
     broadcastGameState();
+  });
+
+  // ======== ЧАТ =========
+  // data: { text: string }
+  socket.on('chatMessage', (data) => {
+    const rawText = data && data.text;
+    if (!rawText || typeof rawText !== 'string') return;
+
+    const text = rawText.trim();
+    if (!text) return;
+
+    const player = table.players.find(p => p.id === socket.id);
+    const name = player ? player.name : 'Гость';
+
+    const msg = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      playerId: socket.id,
+      name,
+      text: text.slice(0, 500), // ограничим длину
+      ts: new Date().toISOString()
+    };
+
+    chatLog.push(msg);
+    if (chatLog.length > 200) {
+      chatLog.shift();
+    }
+
+    io.emit('chatMessage', msg);
   });
 
   socket.on('disconnect', () => {
