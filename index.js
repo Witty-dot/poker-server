@@ -9,30 +9,29 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ----- путь до корня проекта (на уровень выше js/) -----
-const rootDir = path.join(__dirname, '..');
+// корень проекта
+const rootDir = __dirname;
 
 // ---------- СТАТИКА ДЛЯ ФРОНТА ----------
 
-// все статики из корня: index.html, table.html, js, css и т.п.
+// всё из корня: index.html, table.html, lobby.html, js, css, картинки и т.п.
 app.use(express.static(rootDir));
 
-// js/*
+// js/
 app.use('/js', express.static(path.join(rootDir, 'js')));
 
-// css/*
+// css/
 app.use('/css', express.static(path.join(rootDir, 'css')));
 
-// главная страница
+// главная
 app.get('/', (req, res) => {
   res.sendFile(path.join(rootDir, 'index.html'));
 });
 
-// страница стола
+// стол
 app.get('/table.html', (req, res) => {
   res.sendFile(path.join(rootDir, 'table.html'));
 });
-
 // ================= Debug-лог для анализа раздач =================
 
 const debugLog = [];
