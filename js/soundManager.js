@@ -91,24 +91,27 @@ export const SOUND_DEFS = {
 
 /**
  * Простой аудио-менеджер для браузера
- * - preload() прогревает звуки
- * - play(event) проигрывает
+ * - preloadAll() прогревает звуки
+ * - play(eventName) проигрывает
  * - mute/unmute, setMasterVolume, setProfile(normal/quiet/loud)
  */
 export class SoundManager {
   constructor(options = {}) {
-    // Базовый путь к /sounds
+    // Базовый путь к /sound
     this.basePath = options.basePath || '/sound';
 
     // Профиль громкости композитных звуков (normal / quiet / loud)
     this.profile = options.profile || 'normal';
 
     // Громкости
-    this.masterVolume = 1.0;     // 0..1
+    this.masterVolume = this._clamp01(
+      typeof options.masterVolume === 'number' ? options.masterVolume : 1.0
+    );
     this.categoryVolumes = {
       ui: 1.0,
       action: 1.0,
       ambient: 1.0,
+      ...(options.categoryVolumes || {}),
     };
 
     this.muted = false;
@@ -165,12 +168,12 @@ export class SoundManager {
     }
 
     if (def.type === 'base') {
-      // Пример: /sounds/processed/base/wav/имя.wav
+      // /sound/processed/base/wav/имя.wav
       return `${this.basePath}/${def.file}`;
     }
 
     if (def.type === 'composite') {
-      // Пример: /sounds/processed/composite/wav/normal/fold_normal.wav
+      // /sound/processed/composite/wav/normal/fold_normal.wav
       const profile = this.profile;
       const fileName = `${def.name}_${profile}.wav`;
       return `${this.basePath}/processed/composite/wav/${profile}/${fileName}`;
@@ -195,10 +198,14 @@ export class SoundManager {
 
       const p = new Promise((resolve) => {
         audio.addEventListener('canplaythrough', () => resolve(), { once: true });
-        audio.addEventListener('error', () => {
-          console.warn('[SoundManager] Error preloading', url);
-          resolve();
-        }, { once: true });
+        audio.addEventListener(
+          'error',
+          () => {
+            console.warn('[SoundManager] Error preloading', url);
+            resolve();
+          },
+          { once: true }
+        );
       });
 
       promises.push(p);
@@ -234,12 +241,9 @@ export class SoundManager {
     const volume = this._getEffectiveVolume(def.category);
     instance.volume = this._clamp01(volume);
 
-    // Никакой задержки — играть сразу
     instance.currentTime = 0;
-    instance.play().catch((err) => {
-      // В браузере иногда нужна пользовательская интеракция, чтобы разрешить звук
-      // Можно игнорировать ошибку
-      // console.warn('[SoundManager] play error', err);
+    instance.play().catch(() => {
+      // браузер может блокировать без жеста пользователя — игнорируем
     });
   }
 }
