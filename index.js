@@ -1577,12 +1577,26 @@ app.get('/log', (req, res) => {
 // ================= Socket.IO (игра + чат) =================
 
 io.on('connection', (socket) => {
-  const { limitId } = socket.handshake.query;
-  const limitFromClient = typeof limitId === 'string' ? limitId : null;
-  const chosenLimit = getLimitConfig(limitFromClient) ? limitFromClient : 'nl_10_20';
+  const { limitId, tableId, create } = socket.handshake.query || {};
 
-  // выбираем / создаём стол по лимиту
-  let engine = getTableToSeat(chosenLimit);
+  const limitFromClient = typeof limitId === 'string' ? limitId : null;
+  let chosenLimit = getLimitConfig(limitFromClient) ? limitFromClient : 'nl_10_20';
+
+  let engine = null;
+
+  // 1) Если пришел конкретный tableId — садим ИМЕННО за этот стол
+  if (typeof tableId === 'string' && TABLES.has(tableId)) {
+    engine = TABLES.get(tableId);
+    chosenLimit = engine.limitId;
+
+  // 2) Если пришел флаг "создать стол" — создаём новый стол этого лимита
+  } else if (create === '1') {
+    engine = createNewTableForLimit(chosenLimit);
+
+  // 3) Обычный случай — подобрать подходящий стол по лимиту
+  } else {
+    engine = getTableToSeat(chosenLimit);
+  }
   if (!engine) {
     console.warn('Cannot create/get table for limit', chosenLimit);
     socket.disconnect(true);
