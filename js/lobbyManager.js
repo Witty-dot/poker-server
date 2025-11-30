@@ -1,6 +1,6 @@
 // lobbyManager.js
 
-// Описание лимитов, которые должны быть в лобби
+// Лимиты, которые должны быть в лобби
 const LIMITS = [
   // MICRO
   { id: 'NL1-2',      smallBlind: 1,    bigBlind: 2 },
@@ -27,58 +27,138 @@ const LIMITS = [
   { id: 'NL20K-40K',  smallBlind: 20000, bigBlind: 40000 },
 ];
 
+// Максимальное количество РЕАЛЬНЫХ столов на один лимит
+const MAX_REAL_TABLES_PER_LIMIT = 6;
+
 class LobbyManager {
   constructor() {
-    this.tables = new Map(); // tableId -> tableInfo
+    // tableId -> tableInfo
+    // tableInfo: { id, limitId, isVirtual, playersCount, status }
+    this.tables = new Map();
+
     this.virtualCounter = 1;
     this.realCounter = 1;
 
-    // На старте гарантируем по одному "виртуальному" столу на лимит
-    LIMITS.forEach(limit => this.ensureVirtualForLimit(limit.id));
+    // На старте: по одному виртуальному слоту на каждый лимит
+    LIMITS.forEach(limit => {
+      this._normalizeLimitState(limit.id);
+    });
   }
 
   getLimits() {
     return LIMITS;
   }
 
-  /**
-   * Убедиться, что для лимита есть хотя бы один виртуальный пустой стол
-   * (тот, за который ещё никто не сел).
-   */
-  ensureVirtualForLimit(limitId) {
-    const hasVirtual = [...this.tables.values()].some(
-      t => t.limitId === limitId && t.isVirtual === true
-    );
-    if (hasVirtual) return;
+  // ==========================
+  // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
+  // ==========================
 
+  _getLimitConfig(limitId) {
+    return LIMITS.find(l => l.id === limitId) || null;
+  }
+
+  _getByLimit(limitId) {
+    const real = [];
+    const virtual = [];
+
+    for (const table of this.tables.values()) {
+      if (table.limitId !== limitId) continue;
+      if (table.isVirtual) virtual.push(table);
+      else real.push(table);
+    }
+
+    return { real, virtual };
+  }
+
+  _createVirtual(limitId) {
     const id = `V-${limitId}-${this.virtualCounter++}`;
-    this.tables.set(id, {
+    const table = {
       id,
       limitId,
       isVirtual: true,
       playersCount: 0,
-      status: 'waiting', // waiting / playing / finished
-    });
+      status: 'open', // "слот" для нового стола
+    };
+    this.tables.set(id, table);
+    return table;
+  }
+
+  _createReal(limitId) {
+    const id = `T-${limitId}-${this.realCounter++}`;
+    const table = {
+      id,
+      limitId,
+      isVirtual: false,
+      playersCount: 0,
+      status: 'waiting', // пока без игроков
+    };
+    this.tables.set(id, table);
+    return table;
   }
 
   /**
+   * Нормализуем состояние для лимита:
+   * - если нет реальных столов → держим ровно 1 виртуальный слот
+   * - если есть хотя бы один реальный стол → тоже держим ровно 1 виртуальный слот
+   * - лишние виртуальные/пустые ссылки убираем
+   */
+  _normalizeLimitState(limitId) {
+    const { real, virtual } = this._getByLimit(limitId);
+
+    // Удаляем "битые" реальные столы без игроков, если вдруг остались
+    for (const t of real) {
+      if (t.playersCount <= 0) {
+        this.tables.delete(t.id);
+      }
+    }
+
+    const updated = this._getByLimit(limitId);
+    const realNow = updated.real;
+    const virtualNow = updated.virtual;
+
+    // Сколько виртуальных слотов нам нужно?
+    // Логика: всегда ровно ОДИН виртуальный слот на лимит, вне зависимости от того,
+    // есть реальный стол или нет. Он отвечает требованиям:
+    // - "когда никого нет" → одна кнопка
+    // - "когда кто-то уже играет" → один слот для следующего стола
+    const neededVirtual = 1;
+
+    // Если виртуалов больше нужного — удаляем лишние
+    if (virtualNow.length > neededVirtual) {
+      // оставляем первый, остальные удаляем
+      for (let i = neededVirtual; i < virtualNow.length; i++) {
+        this.tables.delete(virtualNow[i].id);
+      }
+    }
+
+    // Если виртуалов меньше нужного — досоздаём
+    if (virtualNow.length < neededVirtual) {
+      this._createVirtual(limitId);
+    }
+  }
+
+  // ==========================
+  //  ПУБЛИЧНЫЕ МЕТОДЫ
+  // ==========================
+
+  /**
    * Снимок лобби для фронта.
-   * Здесь можно собрать всё, что нужно вывести в lobby.html.
+   * Здесь собираем всё, что фронт будет рисовать в lobby.html
    */
   getLobbySnapshot() {
     const result = [];
 
     for (const table of this.tables.values()) {
-      const limit = LIMITS.find(l => l.id === table.limitId);
+      const limit = this._getLimitConfig(table.limitId);
       if (!limit) continue;
 
       let lobbyStatus;
       if (table.isVirtual) {
-        lobbyStatus = 'open';        // пустой “слот” стола
+        lobbyStatus = 'open'; // пустой слот
       } else if (table.playersCount === 0) {
-        lobbyStatus = 'waiting';     // реальный стол, но игроков ещё нет
+        lobbyStatus = 'waiting';
       } else {
-        lobbyStatus = 'playing';     // за столом кто-то есть
+        lobbyStatus = 'playing';
       }
 
       result.push({
@@ -87,77 +167,121 @@ class LobbyManager {
         limitName: limit.name,
         smallBlind: limit.smallBlind,
         bigBlind: limit.bigBlind,
+
         playersCount: table.playersCount,
         status: lobbyStatus,
         isVirtual: table.isVirtual,
       });
     }
 
-    // Можно отсортировать по лимиту / id
-    result.sort((a, b) => a.limitName.localeCompare(b.limitName));
+    // отсортируем по лимиту/ID
+    result.sort((a, b) => {
+      if (a.limitName === b.limitName) {
+        return a.id.localeCompare(b.id);
+      }
+      return a.limitName.localeCompare(b.limitName);
+    });
+
     return result;
   }
 
   /**
    * Игрок хочет сесть за стол определённого лимита.
-   * Если клик по виртуальному столу — создаём новый реальный,
-   * удаляем виртуальный, и создаём ещё один виртуальный слот.
+   *
+   * Варианты:
+   *  - клик по виртуальному слоту → создаём новый реальный стол, сажаем туда игрока,
+   *    затем нормализуем (будет ещё один слот).
+   *  - клик по конкретному реальному столу → просто добавляем игрока.
+   *
+   * Ограничение: не создаём больше MAX_REAL_TABLES_PER_LIMIT реальных столов на лимит.
    */
   handleJoinRequest({ limitId, tableId, playerId }) {
-    let table = tableId ? this.tables.get(tableId) : null;
-
-    // Если кликнули по виртуальному или вообще без tableId → создаём реальный
-    if (!table || table.isVirtual) {
-      const realId = `T-${limitId}-${this.realCounter++}`;
-      table = {
-        id: realId,
-        limitId,
-        isVirtual: false,
-        playersCount: 0,
-        status: 'waiting',
-      };
-      this.tables.set(realId, table);
-
-      // удаляем старый виртуальный слот, если был
-      if (tableId && this.tables.has(tableId)) {
-        this.tables.delete(tableId);
-      }
-
-      // и сразу создаём новый виртуальный слот для этого лимита
-      this.ensureVirtualForLimit(limitId);
+    if (!limitId) {
+      throw new Error('limitId is required');
     }
 
-    // Добавляем игрока на стол (логика количественная — без мест)
+    const limitCfg = this._getLimitConfig(limitId);
+    if (!limitCfg) {
+      throw new Error(`Unknown limitId: ${limitId}`);
+    }
+
+    let table = tableId ? this.tables.get(tableId) : null;
+
+    const { real, virtual } = this._getByLimit(limitId);
+    const realCount = real.length;
+
+    const clickedVirtual = table && table.isVirtual;
+
+    // Если:
+    //  - не передали tableId, или
+    //  - передали, но это виртуальный слот
+    // тогда решаем, создавать ли новый реальный стол
+    if (!table || clickedVirtual) {
+      // 1) если лимит по количеству реальных столов ещё не выбран —
+      //    можем создать новый реальный стол
+      if (realCount < MAX_REAL_TABLES_PER_LIMIT) {
+        const newReal = this._createReal(limitId);
+        table = newReal;
+
+        // если клик был по виртуальному — этот слот можно удалить,
+        // _normalizeLimitState потом создаст новый при необходимости
+        if (clickedVirtual) {
+          this.tables.delete(tableId);
+        }
+      } else {
+        // 2) лимит реальных столов исчерпан:
+        //    пробуем посадить игрока на уже существующий стол
+        if (real.length === 0) {
+          // странный кейс, но на всякий — просто откажем
+          return { error: 'MAX_TABLES_LIMIT_REACHED' };
+        }
+
+        // выбираем стол с наименьшим количеством игроков
+        table = real.reduce((best, t) =>
+          t.playersCount < best.playersCount ? t : best,
+        real[0]);
+      }
+    }
+
+    // На этом этапе table — реальный стол
+    if (!table || table.isVirtual) {
+      return { error: 'TABLE_NOT_AVAILABLE' };
+    }
+
     table.playersCount += 1;
     table.status = table.playersCount > 0 ? 'playing' : 'waiting';
 
-    return table;
+    // Нормализуем: чтобы было не больше одного виртуального слота
+    this._normalizeLimitState(limitId);
+
+    return { table };
   }
 
   /**
    * Игрок покидает стол.
-   * Если стол опустел — можно либо:
-   *   а) оставить его (playersCount = 0, status = waiting)
-   *   б) удалить его, если он не нужен (оставив только виртуальный слот)
-   *
-   * Здесь я предлагаю:
-   * — когда стол пустеет, мы его удаляем,
-   * — в ensureVirtualForLimit всё равно есть пустой визуальный слот.
+   * Если стол опустел:
+   *  - реальный стол удаляем,
+   *  - нормализуем состояние лимита:
+   *      * если нет реальных столов → оставляем один виртуальный слот;
+   *      * если есть играющие → тоже один виртуальный слот.
    */
   handleLeaveTable({ tableId, playerId }) {
     const table = this.tables.get(tableId);
     if (!table || table.isVirtual) return;
 
+    const limitId = table.limitId;
+
     table.playersCount = Math.max(0, table.playersCount - 1);
 
     if (table.playersCount === 0) {
-      // Стол пуст – удаляем реальный
+      // "Если ноль человек за столом — стола не существует"
       this.tables.delete(tableId);
-      // и гарантируем, что виртуальный для его лимита есть
-      this.ensureVirtualForLimit(table.limitId);
     } else {
       table.status = 'playing';
     }
+
+    // Чистим лишние пустые / слот оставляем один
+    this._normalizeLimitState(limitId);
   }
 }
 
