@@ -536,7 +536,18 @@ socket.on('gameState', (state) => {
   renderState(state);
 });
 
-socket.on('chat:message', (msg) => {
+// ИСТОРИЯ ЧАТА ОТ СЕРВЕРА
+socket.on('chatHistory', (history) => {
+  if (!Array.isArray(history)) return;
+  history.forEach(msg => {
+    if (!msg || !msg.text) return;
+    const name = msg.name || 'Игрок';
+    appendChatLine('player', `${name}: ${msg.text}`);
+  });
+});
+
+// НОВОЕ СООБЩЕНИЕ ЧАТА
+socket.on('chatMessage', (msg) => {
   if (!msg || !msg.text) return;
   const name = msg.name || 'Игрок';
   appendChatLine('player', `${name}: ${msg.text}`);
@@ -710,7 +721,8 @@ function wireChat() {
     const text = chatInputEl.value.trim();
     if (!text) return;
     appendChatLine('player', `Вы: ${text}`);
-    socket.emit('chat:send', { text });
+    // СООБЩЕНИЕ ЧАТА НА СЕРВЕР
+    socket.emit('chatMessage', { text });
     chatInputEl.value = '';
   };
 
