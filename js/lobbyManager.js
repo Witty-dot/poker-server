@@ -1,31 +1,53 @@
 // lobbyManager.js
 
+// lobbyManager.js
+
 // Лимиты, которые должны быть в лобби
 const LIMITS = [
   // MICRO
-  { id: 'NL1-2',      smallBlind: 1,    bigBlind: 2 },
-  { id: 'NL2-5',      smallBlind: 2,    bigBlind: 5 },
-  { id: 'NL5-10',     smallBlind: 5,    bigBlind: 10 },
-  { id: 'NL10-20',    smallBlind: 10,   bigBlind: 20 },
+  { id: 'NL1-2',      name: 'NL 1/2',       smallBlind: 1,    bigBlind: 2 },
+  { id: 'NL2-5',      name: 'NL 2/5',       smallBlind: 2,    bigBlind: 5 },
+  { id: 'NL5-10',     name: 'NL 5/10',      smallBlind: 5,    bigBlind: 10 },
+  { id: 'NL10-20',    name: 'NL 10/20',     smallBlind: 10,   bigBlind: 20 },
 
   // LOW
-  { id: 'NL25-50',    smallBlind: 25,   bigBlind: 50 },
-  { id: 'NL50-100',   smallBlind: 50,   bigBlind: 100 },
+  { id: 'NL25-50',    name: 'NL 25/50',     smallBlind: 25,   bigBlind: 50 },
+  { id: 'NL50-100',   name: 'NL 50/100',    smallBlind: 50,   bigBlind: 100 },
 
   // MID
-  { id: 'NL100-200',  smallBlind: 100,  bigBlind: 200 },
-  { id: 'NL200-400',  smallBlind: 200,  bigBlind: 400 },
-  { id: 'NL500-1000', smallBlind: 500,  bigBlind: 1000 },
+  { id: 'NL100-200',  name: 'NL 100/200',   smallBlind: 100,  bigBlind: 200 },
+  { id: 'NL200-400',  name: 'NL 200/400',   smallBlind: 200,  bigBlind: 400 },
+  { id: 'NL500-1000', name: 'NL 500/1000',  smallBlind: 500,  bigBlind: 1000 },
 
   // HIGH
-  { id: 'NL1K-2K',    smallBlind: 1000, bigBlind: 2000 },
-  { id: 'NL2K-4K',    smallBlind: 2000, bigBlind: 4000 },
-  { id: 'NL5K-10K',   smallBlind: 5000, bigBlind: 10000 },
+  { id: 'NL1K-2K',    name: 'NL 1K/2K',     smallBlind: 1000, bigBlind: 2000 },
+  { id: 'NL2K-4K',    name: 'NL 2K/4K',     smallBlind: 2000, bigBlind: 4000 },
+  { id: 'NL5K-10K',   name: 'NL 5K/10K',    smallBlind: 5000, bigBlind: 10000 },
 
   // NOSEBLEED
-  { id: 'NL10K-20K',  smallBlind: 10000, bigBlind: 20000 },
-  { id: 'NL20K-40K',  smallBlind: 20000, bigBlind: 40000 },
+  { id: 'NL10K-20K',  name: 'NL 10K/20K',   smallBlind: 10000, bigBlind: 20000 },
+  { id: 'NL20K-40K',  name: 'NL 20K/40K',   smallBlind: 20000, bigBlind: 40000 },
 ];
+
+class LobbyManager {
+  constructor() {
+    // ...
+  }
+
+  getLimits() {
+    return LIMITS;
+  }
+
+  // добавляем:
+  getLimitConfig(limitId) {
+    return LIMITS.find(l => l.id === limitId) || null;
+  }
+
+  // остальной код как у тебя
+  // ...
+}
+
+module.exports = new LobbyManager();
 
 // Максимальное количество РЕАЛЬНЫХ столов на один лимит
 const MAX_REAL_TABLES_PER_LIMIT = 6;
