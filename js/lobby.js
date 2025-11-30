@@ -21,14 +21,6 @@ function warmupSounds() {
 document.addEventListener('pointerdown', warmupSounds, { once: true });
 
 // ========================================
-//  Состояние лобби
-// ========================================
-
-// Сырой ответ /api/lobby
-let rawLobby = []; // [{ limitId, name, smallBlind, bigBlind, tables:[{tableId, players}], hasEmptyPlaceholder }]
-let lobbyLoaded = false;
-
-// ========================================
 //  Состояние фильтров / сортировки
 // ========================================
 
@@ -40,6 +32,32 @@ const state = {
   sortBy: 'stakes',     // name | stakes | players | avgPot | hph
   sortDir: 'asc'
 };
+
+// ========================================
+//  Данные лобби с сервера
+// ========================================
+
+/**
+ * Текущий список столов для фронта.
+ * Структура близка к прежнему MOCK_TABLES:
+ * {
+ *   id,            // tableId или синтетический id виртуального слота
+ *   limitId,
+ *   name,
+ *   stakesSB,
+ *   stakesBB,
+ *   currency,
+ *   maxPlayers,
+ *   seated,
+ *   avgPot,
+ *   handsPerHour,
+ *   speed,
+ *   waitlist,
+ *   isVip,
+ *   isVirtual      // true для пустого слота "создать стол"
+ * }
+ */
+let currentTables = [];
 
 // ========================================
 //  Утилиты
@@ -56,78 +74,84 @@ function stakesToLimitBand(bb) {
   return 'high';
 }
 
-// Превращаем структуру /api/lobby в список "виртуальных" столов
-function expandLobbyToTables() {
-  if (!lobbyLoaded) return [];
+// Преобразуем /api/lobby → currentTables
+function buildTablesFromApi(apiData) {
+  if (!Array.isArray(apiData)) return [];
 
-  const rows = [];
+  const res = [];
 
-  rawLobby.forEach(limit => {
-    // чуть разнообразим визуал: низкие лимиты — regular, высокие — fast/VIP
-    const baseSpeed = limit.bigBlind >= 200 ? 'fast' : 'normal';
-    const baseVip   = limit.bigBlind >= 1000;
+  apiData.forEach(limit => {
+    const {
+      limitId,
+      name,
+      smallBlind,
+      bigBlind,
+      tables,
+      hasEmptyPlaceholder
+    } = limit;
 
-    // реальные столы
-    (limit.tables || []).forEach(t => {
-      rows.push({
+    const currency = 'MBC';
+    const maxPlayers = 6;      // наш текущий максимум
+    const speed = 'normal';    // пока без реального параметра
+    const isVip = false;       // потом можно добавить по лимиту
+
+    // Реальные столы
+    (tables || []).forEach((t, idx) => {
+      res.push({
         id: t.tableId,
-        limitId: limit.limitId,
-        name: `${limit.name} · ${t.tableId}`,
-        stakesSB: limit.smallBlind,
-        stakesBB: limit.bigBlind,
-        currency: 'MBC',
-        maxPlayers: 6,
-        seated: t.players || 0,
+        limitId,
+        name: `${name} #${idx + 1}`,
+        stakesSB: smallBlind,
+        stakesBB: bigBlind,
+        currency,
+        maxPlayers,
+        seated: t.players,
         avgPot: 0,
         handsPerHour: 0,
-        speed: baseSpeed,
+        speed,
         waitlist: 0,
-        isVip: baseVip,
+        isVip,
         isVirtual: false
       });
     });
 
-    // виртуальный слот "новый стол" для этого лимита
-    if (limit.hasEmptyPlaceholder) {
-      rows.push({
-        id: `${limit.limitId}#new`,
-        limitId: limit.limitId,
-        name: `${limit.name} · новый стол`,
-        stakesSB: limit.smallBlind,
-        stakesBB: limit.bigBlind,
-        currency: 'MBC',
-        maxPlayers: 6,
+    // Виртуальный слот "создать новый стол", если ещё можно
+    if (hasEmptyPlaceholder) {
+      const virtualId = `${limitId}#new`;
+      res.push({
+        id: virtualId,
+        limitId,
+        name: `${name} · новый стол`,
+        stakesSB: smallBlind,
+        stakesBB: bigBlind,
+        currency,
+        maxPlayers,
         seated: 0,
         avgPot: 0,
         handsPerHour: 0,
-        speed: baseSpeed,
+        speed,
         waitlist: 0,
-        isVip: baseVip,
+        isVip,
         isVirtual: true
       });
     }
   });
 
-  return rows;
+  return res;
 }
 
-// ========================================
-//  Загрузка лобби с сервера
-// ========================================
-
-async function loadLobbyData() {
+// Загружаем /api/lobby
+async function fetchLobbySnapshot() {
   try {
-    const res = await fetch('/api/lobby');
-    const data = await res.json();
-    if (!Array.isArray(data)) {
-      console.warn('Invalid lobby data', data);
+    const res = await fetch('/api/lobby', { cache: 'no-store' });
+    if (!res.ok) {
+      console.error('[lobby] /api/lobby failed', res.status);
       return;
     }
-    rawLobby = data;
-    lobbyLoaded = true;
-    renderLobby();
+    const data = await res.json();
+    currentTables = buildTablesFromApi(data);
   } catch (e) {
-    console.error('Failed to load lobby', e);
+    console.error('[lobby] fetchLobbySnapshot error', e);
   }
 }
 
@@ -136,14 +160,14 @@ async function loadLobbyData() {
 // ========================================
 
 function getFilteredTables() {
-  let list = expandLobbyToTables();
+  let list = [...currentTables];
 
-  // лимит
+  // лимит (по BB)
   if (state.limit !== 'all') {
     list = list.filter(t => stakesToLimitBand(t.stakesBB) === state.limit);
   }
 
-  // размер стола
+  // размер стола (когда появятся 9-max — просто подставим реальные данные)
   if (state.size === '6max') {
     list = list.filter(t => t.maxPlayers <= 6);
   } else if (state.size === '9max') {
@@ -152,10 +176,10 @@ function getFilteredTables() {
 
   // только свободные места
   if (state.onlyFree) {
-    list = list.filter(t => t.isVirtual || t.seated < t.maxPlayers);
+    list = list.filter(t => t.seated < t.maxPlayers || t.isVirtual);
   }
 
-  // только fast
+  // только fast (когда появятся fast-столы)
   if (state.onlyFast) {
     list = list.filter(t => t.speed === 'fast');
   }
@@ -172,8 +196,9 @@ function getFilteredTables() {
         va = a.stakesBB; vb = b.stakesBB;
         break;
       case 'players':
-        va = a.seated / a.maxPlayers;
-        vb = b.seated / b.maxPlayers;
+        // виртуальный слот считаем пустым
+        va = a.isVirtual ? 0 : a.seated / a.maxPlayers;
+        vb = b.isVirtual ? 0 : b.seated / b.maxPlayers;
         break;
       case 'avgPot':
         va = a.avgPot; vb = b.avgPot;
@@ -201,7 +226,11 @@ const playersCountEl = document.getElementById('playersCount');
 function renderLobby() {
   const tables = getFilteredTables();
 
-  const totalPlayers = tables.reduce((s, t) => s + (t.isVirtual ? 0 : t.seated), 0);
+  // шапка (количество)
+  const totalPlayers = tables
+    .filter(t => !t.isVirtual)
+    .reduce((s, t) => s + t.seated, 0);
+
   if (tablesCountEl)  tablesCountEl.textContent  = `${tables.length} столов`;
   if (playersCountEl) playersCountEl.textContent = `${totalPlayers} игроков онлайн`;
 
@@ -227,7 +256,7 @@ function renderLobby() {
       ? 0
       : Math.max(0, Math.min(100, (table.seated / table.maxPlayers) * 100));
 
-    // 1. Имя стола + теги (как было)
+    // 1. Имя стола + теги
     const cName = document.createElement('div');
     cName.innerHTML = `
       <div class="table-name-main">${table.name}</div>
@@ -246,18 +275,27 @@ function renderLobby() {
     // 3. Игроки
     const cPlayers = document.createElement('div');
     cPlayers.className = 'players-cell';
-    cPlayers.innerHTML = `
-      <span>${table.isVirtual ? '—' : `${table.seated}/${table.maxPlayers}`}</span>
-      <div class="players-bar">
-        <div class="players-fill" style="width:${fillPercent}%"></div>
-      </div>
-    `;
+    if (table.isVirtual) {
+      cPlayers.innerHTML = `
+        <span>—</span>
+        <div class="players-bar">
+          <div class="players-fill" style="width:0%"></div>
+        </div>
+      `;
+    } else {
+      cPlayers.innerHTML = `
+        <span>${table.seated}/${table.maxPlayers}</span>
+        <div class="players-bar">
+          <div class="players-fill" style="width:${fillPercent}%"></div>
+        </div>
+      `;
+    }
 
-    // 4. Средний банк
+    // 4. Средний банк — пока ноль, потом подставим реальные
     const cAvg = document.createElement('div');
     cAvg.textContent = `${formatChips(table.avgPot)} ${table.currency}`;
 
-    // 5. Руки/час + теги (как было)
+    // 5. Руки/час + теги
     const cHph = document.createElement('div');
     const tags = [];
     if (table.speed === 'fast') tags.push('<span class="tag tag-fast">Fast</span>');
@@ -273,7 +311,7 @@ function renderLobby() {
     btn.className = 'btn-seat';
 
     if (table.isVirtual) {
-      btn.textContent = 'Открыть стол';
+      btn.textContent = 'Создать стол';
     } else if (freeSeats <= 0) {
       btn.classList.add('btn-seat-full');
       btn.textContent = table.waitlist > 0
@@ -287,7 +325,6 @@ function renderLobby() {
       sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
       openTable(table);
     });
-
     cAction.appendChild(btn);
 
     row.appendChild(cName);
@@ -305,16 +342,18 @@ function renderLobby() {
 //  Открытие стола
 // ========================================
 
-// ВАЖНО: передаём limitId, а не table.id — сервер сам выберет / создаст стол
 function openTable(table) {
-  const url = `/table.html?limitId=${encodeURIComponent(table.limitId)}`;
+  // Для серверной фабрики нам достаточно limitId
+  const params = new URLSearchParams();
+  if (table.limitId) params.set('limitId', table.limitId);
+  const url = `/table.html?${params.toString()}`;
   window.location.href = url;
 }
 
 // Быстрая посадка — выбираем лучший стол по текущим фильтрам
 function quickSeat() {
   const tables = getFilteredTables()
-    .filter(t => !t.isVirtual && t.seated < t.maxPlayers);
+    .filter(t => t.isVirtual || t.seated < t.maxPlayers);
 
   if (!tables.length) {
     sound.play(SOUND_EVENTS.UI_ERROR_SOFT);
@@ -322,14 +361,15 @@ function quickSeat() {
     return;
   }
 
-  // Сортируем по лимиту ближе к mid-range и по заполняемости
+  // Сортируем по заполненности (виртуальный слот — самый пустой)
   tables.sort((a, b) => {
-    const aFill = a.seated / a.maxPlayers;
-    const bFill = b.seated / b.maxPlayers;
+    const aFill = a.isVirtual ? 0 : a.seated / a.maxPlayers;
+    const bFill = b.isVirtual ? 0 : b.seated / b.maxPlayers;
     const aScore = Math.abs(aFill - 0.7);
     const bScore = Math.abs(bFill - 0.7);
     if (aScore !== bScore) return aScore - bScore;
-    return (b.avgPot || 0) - (a.avgPot || 0);
+    // если одинаково — по лимиту (повыше сначала)
+    return b.stakesBB - a.stakesBB;
   });
 
   sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
@@ -396,7 +436,6 @@ function wireFilters() {
         state.sortDir = sortKey === 'name' ? 'asc' : 'desc';
       }
 
-      // стрелочки
       const arrows = document.querySelectorAll('[data-sort-arrow]');
       arrows.forEach(a => a.textContent = '▲');
       const currentArrow = document.querySelector(`[data-sort-arrow="${sortKey}"]`);
@@ -418,5 +457,16 @@ function wireFilters() {
 }
 
 // старт
-wireFilters();
-loadLobbyData();
+async function initLobby() {
+  await fetchLobbySnapshot();    // первый снимок
+  wireFilters();
+  renderLobby();
+
+  // периодический авто-обновлятор лобби (можно подкрутить интервал)
+  setInterval(async () => {
+    await fetchLobbySnapshot();
+    renderLobby();
+  }, 5000);
+}
+
+initLobby();
