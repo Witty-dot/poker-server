@@ -275,7 +275,7 @@ function renderLobby() {
       btn.textContent = 'Сесть за стол';
     }
     btn.addEventListener('click', () => {
-      sounds.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
+      sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
       openTable(table);
     });
     cAction.appendChild(btn);
@@ -306,7 +306,7 @@ function quickSeat() {
     .filter(t => t.seated < t.maxPlayers);
 
   if (!tables.length) {
-    sounds.play(SOUND_EVENTS.UI_ERROR_SOFT);
+    sound.play(SOUND_EVENTS.UI_ERROR_SOFT);
     alert('Нет столов с свободными местами под текущие фильтры.');
     return;
   }
@@ -323,7 +323,7 @@ function quickSeat() {
     return b.avgPot - a.avgPot;
   });
 
-  sounds.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
+  sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
   openTable(tables[0]);
 }
 
@@ -335,7 +335,7 @@ function wireFilters() {
   // лимиты
   document.querySelectorAll('[data-limit]').forEach(btn => {
     btn.addEventListener('click', () => {
-      sounds.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
+      sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
       const val = btn.getAttribute('data-limit');
       state.limit = val;
 
@@ -349,7 +349,7 @@ function wireFilters() {
   // размер стола
   document.querySelectorAll('[data-size]').forEach(btn => {
     btn.addEventListener('click', () => {
-      sounds.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
+      sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
       const val = btn.getAttribute('data-size');
       state.size = val;
 
@@ -363,7 +363,7 @@ function wireFilters() {
   // чекбоксы-фильтры
   document.querySelectorAll('[data-filter]').forEach(btn => {
     btn.addEventListener('click', () => {
-      sounds.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
+      sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
       const key = btn.getAttribute('data-filter');
       if (key === 'only-free') {
         state.onlyFree = !state.onlyFree;
@@ -378,7 +378,7 @@ function wireFilters() {
   // сортировка по заголовкам
   document.querySelectorAll('.table-list-header div[data-sort]').forEach(header => {
     header.addEventListener('click', () => {
-      sounds.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
+      sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
       const sortKey = header.getAttribute('data-sort');
       if (state.sortBy === sortKey) {
         state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
@@ -402,10 +402,10 @@ function wireFilters() {
   const quickSeatBtn = document.getElementById('btnQuickSeat');
   if (quickSeatBtn) {
     quickSeatBtn.addEventListener('click', () => {
-    sounds.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
-    quickSeat();
-  });
-}
+      sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
+      quickSeat();
+    });
+  }
 }
 
 // старт
