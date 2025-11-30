@@ -30,7 +30,7 @@ export const SOUND_DEFS = {
   // UI-клики
   UI_CLICK_PRIMARY: {
     type: 'base',
-    file: 'processed/base/wav/mixkit-select-click-1109.wav', // можно сменить на более мягкий
+    file: 'processed/base/wav/mixkit-cool-interface-click-tone-2568', // можно сменить на более мягкий
     category: 'ui',
   },
   UI_CLICK_SECONDARY: {
