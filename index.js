@@ -41,6 +41,47 @@ const io = new Server(server, {
   cors: { origin: '*' }
 });
 
+// ---------- API ЛОББИ ----------
+
+// Снимок всех столов для фронта
+app.get('/api/lobby', (req, res) => {
+  const snapshot = lobbyManager.getLobbySnapshot();
+  res.json(snapshot);
+});
+
+// Игрок запросил "сесть за стол" определённого лимита / слота
+app.post('/api/lobby/join', (req, res) => {
+  const { limitId, tableId, playerId } = req.body || {};
+
+  if (!limitId) {
+    return res.status(400).json({ error: 'limitId_required' });
+  }
+
+  try {
+    const result = lobbyManager.handleJoinRequest({ limitId, tableId, playerId: playerId || 'anon' });
+    if (result.error) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    const table = result.table;
+    const limitCfg = lobbyManager.getLimitConfig(table.limitId);
+    if (!limitCfg) {
+      return res.status(500).json({ error: 'limit_not_found' });
+    }
+
+    res.json({
+      tableId: table.id,
+      limitId: table.limitId,
+      smallBlind: limitCfg.smallBlind,
+      bigBlind: limitCfg.bigBlind,
+      name: `${limitCfg.name} · #${table.id}`,
+      playersCount: table.playersCount || 0,
+    });
+  } catch (e) {
+    console.error('lobby/join error', e);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
 // ================= Оценка покерных рук =================
 
 const RANK_TO_VALUE = {
