@@ -2,7 +2,8 @@
 // ===============   CONNECT TO ENGINE   ===============
 // =====================================================
 
-const socket = io('https://poker-server-f2et.onrender.com', {
+// Подключаемся к socket.io на том же хосте, где запущен сервер
+const socket = io({
   transports: ['websocket', 'polling']
 });
 
