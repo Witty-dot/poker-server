@@ -343,9 +343,20 @@ function renderLobby() {
 // ========================================
 
 function openTable(table) {
-  // Для серверной фабрики нам достаточно limitId
   const params = new URLSearchParams();
-  if (table.limitId) params.set('limitId', table.limitId);
+
+  if (table.limitId) {
+    params.set('limitId', table.limitId);
+  }
+
+  if (table.isVirtual) {
+    // ЯВНОЙ командой говорим серверу: создай НОВЫЙ стол этого лимита
+    params.set('create', '1');
+  } else if (table.id) {
+    // Для уже существующего стола передаем его tableId
+    params.set('tableId', table.id);
+  }
+
   const url = `/table.html?${params.toString()}`;
   window.location.href = url;
 }
