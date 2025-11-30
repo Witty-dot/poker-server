@@ -2,10 +2,29 @@
 
 // Описание лимитов, которые должны быть в лобби
 const LIMITS = [
-  { id: 'NL25-50',   name: 'NL 25 / 50',   smallBlind: 25,  bigBlind: 50 },
-  { id: 'NL50-100',  name: 'NL 50 / 100',  smallBlind: 50,  bigBlind: 100 },
-  { id: 'NL100-200', name: 'NL 100 / 200', smallBlind: 100, bigBlind: 200 },
-  // добавишь остальные по необходимости
+  // MICRO
+  { id: 'NL1-2',      smallBlind: 1,    bigBlind: 2 },
+  { id: 'NL2-5',      smallBlind: 2,    bigBlind: 5 },
+  { id: 'NL5-10',     smallBlind: 5,    bigBlind: 10 },
+  { id: 'NL10-20',    smallBlind: 10,   bigBlind: 20 },
+
+  // LOW
+  { id: 'NL25-50',    smallBlind: 25,   bigBlind: 50 },
+  { id: 'NL50-100',   smallBlind: 50,   bigBlind: 100 },
+
+  // MID
+  { id: 'NL100-200',  smallBlind: 100,  bigBlind: 200 },
+  { id: 'NL200-400',  smallBlind: 200,  bigBlind: 400 },
+  { id: 'NL500-1000', smallBlind: 500,  bigBlind: 1000 },
+
+  // HIGH
+  { id: 'NL1K-2K',    smallBlind: 1000, bigBlind: 2000 },
+  { id: 'NL2K-4K',    smallBlind: 2000, bigBlind: 4000 },
+  { id: 'NL5K-10K',   smallBlind: 5000, bigBlind: 10000 },
+
+  // NOSEBLEED
+  { id: 'NL10K-20K',  smallBlind: 10000, bigBlind: 20000 },
+  { id: 'NL20K-40K',  smallBlind: 20000, bigBlind: 40000 },
 ];
 
 class LobbyManager {
