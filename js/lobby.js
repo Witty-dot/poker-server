@@ -7,14 +7,14 @@ const sound = new SoundManager({
   masterVolume: 1.0,
 });
 
-// Разогрев по первому пользовательскому действию (обязательно для iOS)
+// Разогрев по первому пользовательскому действию (обязательно для iOS/мобилок)
 let soundWarmupDone = false;
 
 function warmupSounds() {
   if (soundWarmupDone) return;
   soundWarmupDone = true;
 
-  // “будим” аудиоконтекст и подгружаем все звуки
+  // “будим” аудиосистему и подгружаем все звуки
   sound.unlock();
   sound.preloadAll();
 }
