@@ -216,34 +216,42 @@ export class SoundManager {
 
   // Проиграть звук события
   play(eventName) {
-    const def = SOUND_DEFS[eventName];
-    if (!def) {
-      console.warn('[SoundManager] Unknown sound event', eventName);
-      return;
-    }
-
-    if (this.muted) return;
-
-    const url = this._resolveUrl(eventName);
-    if (!url) return;
-
-    let audio = this.audioCache.get(url);
-
-    // Если не предзагружали — создаём на лету
-    if (!audio) {
-      audio = new Audio(url);
-      this.audioCache.set(url, audio);
-    }
-
-    // Клонируем, чтобы можно было накладывать одинаковый звук несколько раз подряд
-    const instance = audio.cloneNode(true);
-
-    const volume = this._getEffectiveVolume(def.category);
-    instance.volume = this._clamp01(volume);
-
-    instance.currentTime = 0;
-    instance.play().catch(() => {
-      // браузер может блокировать без жеста пользователя — игнорируем
-    });
+  const def = SOUND_DEFS[eventName];
+  if (!def) {
+    console.warn('[SoundManager] Unknown sound event', eventName);
+    return;
   }
+  if (this.muted) return;
+
+  const url = this._resolveUrl(eventName);
+  if (!url) return;
+
+  let audio = this.audioCache.get(url);
+  if (!audio) {
+    audio = new Audio(url);
+    audio.preload = 'auto';
+    this.audioCache.set(url, audio);
+  }
+
+  const volume = this._getEffectiveVolume(def.category);
+
+  // === МГНОВЕННЫЙ режим для UI-кликов ===
+  if (def.category === 'ui') {
+    try {
+      audio.pause();           // на всякий случай
+      audio.currentTime = 0;   // в начало
+      audio.volume = this._clamp01(volume);
+      audio.play().catch(() => {});
+    } catch (e) {
+      // молча игнорируем
+    }
+    return;
+  }
+
+  // === Остальные звуки можно класть поверх друг друга ===
+  const instance = audio.cloneNode(true);
+  instance.volume = this._clamp01(volume);
+  instance.currentTime = 0;
+  instance.play().catch(() => {});
+}
 }
