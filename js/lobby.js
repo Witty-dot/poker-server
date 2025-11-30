@@ -393,14 +393,8 @@ function wireFilters() {
 
   const quickSeatBtn = document.getElementById('btnQuickSeat');
   if (quickSeatBtn) {
-  quickSeatBtn.addEventListener('click', () => {
-    // ТЕСТ: прямой звук, мимо SoundManager
-    const testAudio = new Audio('/sound/processed/base/wav/mixkit-select-click-1109.wav');
-    testAudio.play().catch(() => {});
-
-    // А это уже через наш менеджер (как должно быть)
+    quickSeatBtn.addEventListener('click', () => {
     sounds.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
-
     quickSeat();
   });
 }
