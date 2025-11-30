@@ -524,5 +524,18 @@
 </div>
 
 <script src="/js/lobby.js"></script>
+<script src="js/soundManager.js"></script>
+<script src="js/lobby.js"></script>
+<script>
+  // Глобальный инстанс
+  window.sounds = new SoundManager({
+    basePath: "/sound/processed",
+    profile: "normal",    // или "quiet"/"loud"
+    masterVolume: 1.0
+  });
+
+  // можно чуть-чуть заранее прогреть
+  window.sounds.preloadAll();
+</script>
 </body>
 </html>
