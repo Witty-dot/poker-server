@@ -9,25 +9,28 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// ----- путь до корня проекта (на уровень выше js/) -----
+const rootDir = path.join(__dirname, '..');
+
 // ---------- СТАТИКА ДЛЯ ФРОНТА ----------
 
-// web/index.html, web/table.html, web/login.html и т.п.
-app.use(express.static(path.join(__dirname)));
+// все статики из корня: index.html, table.html, js, css и т.п.
+app.use(express.static(rootDir));
 
-// js/table.js, js/lobby.js и т.п.
-app.use('/js', express.static(path.join(__dirname, 'js')));
+// js/*
+app.use('/js', express.static(path.join(rootDir, 'js')));
 
-// css/main.css и т.п. (если нужно)
-app.use('/css', express.static(path.join(__dirname, 'css')));
+// css/*
+app.use('/css', express.static(path.join(rootDir, 'css')));
 
 // главная страница
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+  res.sendFile(path.join(rootDir, 'index.html'));
 });
 
-// отдельный роут для стола (можно и без него, но так нагляднее)
+// страница стола
 app.get('/table.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'table.html'));
+  res.sendFile(path.join(rootDir, 'table.html'));
 });
 
 // ================= Debug-лог для анализа раздач =================
