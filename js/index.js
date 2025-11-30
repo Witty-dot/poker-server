@@ -67,11 +67,6 @@ function pushSnapshot(reason, table) {
   console.log('[SNAPSHOT]', reason, JSON.stringify(snapshot));
 }
 
-// Отдаём фронтенд
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
-
 // Просмотр лога: текстом, чтобы можно было скопировать в чат
 app.get('/log', (req, res) => {
   if (!debugLog.length) {
