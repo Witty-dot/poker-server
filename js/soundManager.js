@@ -29,12 +29,12 @@ export const SOUND_DEFS = {
   // UI
   UI_CLICK_PRIMARY: {
     type: 'base',
-    file: 'processed/base/wav/mixkit-select-click-1109.wav',
+    file: 'processed/base/wav/mixkit-select-click-1126.wav',
     category: 'ui',
   },
   UI_CLICK_SECONDARY: {
     type: 'base',
-    file: 'processed/base/wav/mixkit-interface-click-1126.wav',
+    file: 'processed/base/wav/mixkit-interface-click-1125.wav',
     category: 'ui',
   },
   UI_ERROR_SOFT: {
