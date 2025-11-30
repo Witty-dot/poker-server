@@ -1,10 +1,33 @@
-// =====================================================
-// ===============   CONNECT TO ENGINE   ===============
-// =====================================================
+// =====================================================================
+// ===============   TABLE.JS — логика стола + звук   ==================
+// =====================================================================
 
-// Подключаемся к socket.io на том же хосте, где запущен сервер
+import { SoundManager, SOUND_EVENTS } from './soundManager.js';
+
+// -----------------------------------------------------
+//  Query-параметры (tableId/limitId)
+// -----------------------------------------------------
+
+function getQueryParam(name) {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  return params.get(name);
+}
+
+const tableIdFromUrl = getQueryParam('tableId') || null;
+// На будущее под лимиты; серверу можно уже сейчас отправлять, он просто проигнорит
+const limitIdFromUrl = getQueryParam('limitId') || 'NL10-20';
+
+// -----------------------------------------------------
+//  Socket.io подключение
+// -----------------------------------------------------
+
 const socket = io({
-  transports: ['websocket', 'polling']
+  transports: ['websocket', 'polling'],
+  query: {
+    tableId: tableIdFromUrl || '',
+    limitId: limitIdFromUrl || ''
+  }
 });
 
 let myPlayerId = null;
@@ -14,14 +37,34 @@ let lastSeenLogMessage = null;
 let lastSeenDealerDetails = null;
 let lastHeroMessage = null;
 
-// для анимации рубашка → открытые карты
 let heroFlipTimeout = null;
 let heroFlipInProgress = false;
-let lastHoleCardsSignature = null; // сигнатура текущей карманки героя
 
-// =====================================================
-// ===============   DOM CACHE   =======================
-// =====================================================
+// =====================================================================
+// ===============   SOUND MANAGER ДЛЯ СТОЛА   ==========================
+// =====================================================================
+
+const sound = new SoundManager({
+  basePath: '/sound',
+  profile: 'normal',
+  masterVolume: 1.0
+});
+
+let soundWarmupDone = false;
+
+function warmupSounds() {
+  if (soundWarmupDone) return;
+  soundWarmupDone = true;
+  sound.unlock();
+  sound.preloadAll();
+}
+
+// Первый любой тап/клик — разогрев звука (iOS и мобилки)
+document.addEventListener('pointerdown', warmupSounds, { once: true });
+
+// =====================================================================
+// ===============   DOM CACHE   =======================================
+// =====================================================================
 
 const seatEls          = Array.from(document.querySelectorAll('.seat'));
 const dealerChipEl     = document.getElementById('dealerChip');
@@ -66,9 +109,9 @@ const betAmountEl      = document.getElementById('betAmount');
 const betPercentLabel  = document.getElementById('betPercentLabel');
 const presetButtons    = Array.from(document.querySelectorAll('[data-bet-preset]'));
 
-// =====================================================
-// ===============   HELPERS   =========================
-// =====================================================
+// =====================================================================
+// ===============   HELPERS   =========================================
+// =====================================================================
 
 function suitToColor(suit) {
   return (suit === '♥' || suit === '♦') ? 'red' : 'black';
@@ -96,15 +139,12 @@ function createCardEl(card) {
   return div;
 }
 
-// Рубашка под стиль Midnight Black
 function createCardBackEl() {
   const div = document.createElement('div');
   div.className = 'card card-back';
-
   const inner = document.createElement('div');
   inner.className = 'card-back-inner';
   inner.textContent = 'MB';
-
   div.appendChild(inner);
   return div;
 }
@@ -129,9 +169,9 @@ function formatNumber(n) {
   return Number(n).toLocaleString('ru-RU');
 }
 
-// =====================================================
-// ===============   HEADER RENDER   ===================
-// =====================================================
+// =====================================================================
+// ===============   HEADER RENDER   ===================================
+// =====================================================================
 
 function renderHeader(state) {
   if (!state) return;
@@ -143,7 +183,7 @@ function renderHeader(state) {
   }
 
   if (tableNameEl) {
-    tableNameEl.textContent = 'Стол #MB-001';
+    tableNameEl.textContent = tableIdFromUrl ? `Стол ${tableIdFromUrl}` : 'Стол Midnight Black';
   }
 
   if (tablePlayersEl) {
@@ -161,9 +201,9 @@ function renderHeader(state) {
   }
 }
 
-// =====================================================
-// ===============   SEATS RENDER   ====================
-// =====================================================
+// =====================================================================
+// ===============   SEATS RENDER   ====================================
+// =====================================================================
 
 function positionDealerChip(state) {
   if (!dealerChipEl || !tableEl) return;
@@ -190,7 +230,6 @@ function positionDealerChip(state) {
   const seatCx  = seatRect.left  + seatRect.width   / 2;
   const seatCy  = seatRect.top   + seatRect.height  / 2;
 
-  // нормализованный вектор от центра стола к стулу
   let vx = seatCx - tableCx;
   let vy = seatCy - tableCy;
   const len = Math.sqrt(vx*vx + vy*vy) || 1;
@@ -199,9 +238,7 @@ function positionDealerChip(state) {
 
   const chipSize   = dealerChipEl.offsetWidth || 18;
   const chipRadius = chipSize / 2;
-
-  // Чип всегда на "обивке" стола: фиксированное смещение внутрь от стула
-  const offsetFromSeat = 32; // px внутрь стола
+  const offsetFromSeat = 32;
 
   const chipCenterX = seatCx - vx * offsetFromSeat;
   const chipCenterY = seatCy - vy * offsetFromSeat;
@@ -242,9 +279,9 @@ function renderSeats(state) {
   }
 }
 
-// =====================================================
-// ===============   BOARD & POT RENDER   ==============
-// =====================================================
+// =====================================================================
+// ===============   BOARD & POT RENDER   ==============================
+// =====================================================================
 
 function renderBoardAndPot(state, comboKeys) {
   comboKeys = comboKeys || [];
@@ -308,9 +345,9 @@ function renderBoardAndPot(state, comboKeys) {
   }
 }
 
-// =====================================================
-// ===============   HERO RENDER   =====================
-// =====================================================
+// =====================================================================
+// ===============   HERO RENDER   =====================================
+// =====================================================================
 
 function getHeroHint(state) {
   if (!state) return '—';
@@ -380,6 +417,8 @@ function renderHero(state, comboKeys, prevState) {
 
   if (justDealtPreflop) {
     heroFlipInProgress = true;
+    // звук сдачи карманки
+    sound.play(SOUND_EVENTS.CARD_DEAL);
   }
 
   heroCardsSlots.forEach((slot, idx) => {
@@ -390,7 +429,6 @@ function renderHero(state, comboKeys, prevState) {
 
     let el;
     if (heroFlipInProgress) {
-      // сначала показываем рубашку
       el = createCardBackEl();
     } else {
       el = createCardEl(card);
@@ -419,10 +457,16 @@ function renderHero(state, comboKeys, prevState) {
     if (state.turnDeadline) {
       const deadline = state.turnDeadline;
       const upd = () => {
-        const sec = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+        const diffMs = deadline - Date.now();
+        const sec = Math.max(0, Math.ceil(diffMs / 1000));
         if (heroLastActionEl) {
           heroLastActionEl.textContent = `${hintText} · ${sec} с`;
         }
+
+        // можно позже включить тик/urgent:
+        // if (sec === 10) sound.play(SOUND_EVENTS.TIMER_TICK);
+        // if (sec === 5)  sound.play(SOUND_EVENTS.TIMER_URGENT);
+
         if (sec <= 0) clearTurnTimer();
       };
       upd();
@@ -442,9 +486,9 @@ function renderHero(state, comboKeys, prevState) {
   });
 }
 
-// =====================================================
-// ===============   JOIN / LEAVE LOGIC   ==============
-// =====================================================
+// =====================================================================
+// ===============   JOIN / LEAVE LOGIC   ==============================
+// =====================================================================
 
 function isMeSeated(state) {
   if (!myPlayerId || !state || !state.players) return false;
@@ -467,9 +511,9 @@ function updateSeatButton(state) {
   }
 }
 
-// =====================================================
-// ===============   MAIN RENDER   =====================
-// =====================================================
+// =====================================================================
+// ===============   MAIN RENDER   =====================================
+// =====================================================================
 
 function renderState(state) {
   const prevState = lastState;
@@ -484,9 +528,9 @@ function renderState(state) {
   updateSeatButton(state);
 }
 
-// =====================================================
-// ===============   BET CONTROLS   ====================
-// =====================================================
+// =====================================================================
+// ===============   BET CONTROLS   ====================================
+// =====================================================================
 
 function updateBetControls(state) {
   if (!betRangeEl || !betAmountEl) return;
@@ -513,17 +557,17 @@ function getDefaultBetAmount() {
   const bb = s.bigBlind || 10;
   const minRaise = s.minRaise || bb;
 
-  if (!s.currentBet || s.currentBet === 0) return bb; // дефолт — BB
+  if (!s.currentBet || s.currentBet === 0) return bb;
   return s.currentBet + minRaise;
 }
 
-// =====================================================
-// ===============   SOCKET LISTENERS   ================
-// =====================================================
+// =====================================================================
+// ===============   SOCKET LISTENERS   ================================
+// =====================================================================
 
 socket.on('connect', () => {
   myPlayerId = socket.id;
-  console.log('[table.js] Connected →', myPlayerId);
+  console.log('[table.js] Connected →', myPlayerId, 'tableId=', tableIdFromUrl);
 });
 
 socket.on('disconnect', () => {
@@ -536,7 +580,7 @@ socket.on('gameState', (state) => {
   renderState(state);
 });
 
-// ИСТОРИЯ ЧАТА ОТ СЕРВЕРА
+// История чата
 socket.on('chatHistory', (history) => {
   if (!Array.isArray(history)) return;
   history.forEach(msg => {
@@ -546,32 +590,43 @@ socket.on('chatHistory', (history) => {
   });
 });
 
-// НОВОЕ СООБЩЕНИЕ ЧАТА
+// Новое сообщение чата
 socket.on('chatMessage', (msg) => {
   if (!msg || !msg.text) return;
   const name = msg.name || 'Игрок';
   appendChatLine('player', `${name}: ${msg.text}`);
 });
 
-// =====================================================
-// ===============   ACTION BUTTONS   ==================
-// =====================================================
+// Сигналы звуков от сервера: { type: 'FOLD' | 'CALL' | ... }
+socket.on('sound', (payload) => {
+  if (!payload) return;
+  const type = payload.type || payload;
+  if (!type) return;
+  sound.play(type);
+});
+
+// =====================================================================
+// ===============   ACTION BUTTONS   ==================================
+// =====================================================================
 
 function wireActionButtons() {
   if (foldButton) {
     foldButton.addEventListener('click', () => {
+      sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
       socket.emit('action', { type: 'fold' });
     });
   }
 
   if (checkCallButton) {
     checkCallButton.addEventListener('click', () => {
+      sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
       socket.emit('action', { type: 'call' });
     });
   }
 
   if (betRaiseButton) {
     betRaiseButton.addEventListener('click', () => {
+      sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
       let amount = 0;
       if (betAmountEl) {
         const raw = parseInt(betAmountEl.value, 10);
@@ -585,6 +640,7 @@ function wireActionButtons() {
 
   if (allInButton) {
     allInButton.addEventListener('click', () => {
+      sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
       socket.emit('action', { type: 'allin' });
     });
   }
@@ -627,6 +683,8 @@ function wireActionButtons() {
     presetButtons.forEach(btn => {
       btn.addEventListener('click', () => {
         if (!lastState) return;
+        sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
+
         const preset = btn.getAttribute('data-bet-preset');
 
         const players = lastState.players || [];
@@ -686,23 +744,33 @@ function wireActionButtons() {
   });
 }
 
-// =====================================================
-// ===============   SEAT BUTTON   =====================
-// =====================================================
+// =====================================================================
+// ===============   SEAT BUTTON   =====================================
+// =====================================================================
 
 function wireSeatButton() {
   if (!seatButton) return;
 
   seatButton.addEventListener('click', () => {
+    sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
+
     if (!lastState) {
-      socket.emit('joinTable', { playerName: 'Hero' });
+      socket.emit('joinTable', {
+        playerName: 'Hero',
+        tableId: tableIdFromUrl,
+        limitId: limitIdFromUrl
+      });
       return;
     }
 
     const seated = isMeSeated(lastState);
 
     if (!seated) {
-      socket.emit('joinTable', { playerName: 'Hero' });
+      socket.emit('joinTable', {
+        playerName: 'Hero',
+        tableId: tableIdFromUrl,
+        limitId: limitIdFromUrl
+      });
       socket.emit('setPlaying', { playing: true });
     } else {
       socket.emit('setPlaying', { playing: false });
@@ -710,9 +778,9 @@ function wireSeatButton() {
   });
 }
 
-// =====================================================
-// ===============   CHAT WIRES   ======================
-// =====================================================
+// =====================================================================
+// ===============   CHAT WIRES   ======================================
+// =====================================================================
 
 function wireChat() {
   if (!chatInputEl || !chatSendEl) return;
@@ -721,20 +789,25 @@ function wireChat() {
     const text = chatInputEl.value.trim();
     if (!text) return;
     appendChatLine('player', `Вы: ${text}`);
-    // СООБЩЕНИЕ ЧАТА НА СЕРВЕР
     socket.emit('chatMessage', { text });
     chatInputEl.value = '';
   };
 
-  chatSendEl.addEventListener('click', send);
+  chatSendEl.addEventListener('click', () => {
+    sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
+    send();
+  });
   chatInputEl.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') send();
+    if (e.key === 'Enter') {
+      sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
+      send();
+    }
   });
 }
 
-// =====================================================
-// ===============   INIT   ============================
-// =====================================================
+// =====================================================================
+// ===============   INIT   ============================================
+// =====================================================================
 
 (function init() {
   wireActionButtons();
