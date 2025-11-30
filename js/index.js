@@ -9,6 +9,27 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// ---------- СТАТИКА ДЛЯ ФРОНТА ----------
+
+// web/index.html, web/table.html, web/login.html и т.п.
+app.use(express.static(path.join(__dirname, 'web')));
+
+// js/table.js, js/lobby.js и т.п.
+app.use('/js', express.static(path.join(__dirname, 'js')));
+
+// css/main.css и т.п. (если нужно)
+app.use('/css', express.static(path.join(__dirname, 'css')));
+
+// главная страница
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'web', 'index.html'));
+});
+
+// отдельный роут для стола (можно и без него, но так нагляднее)
+app.get('/table.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'web', 'table.html'));
+});
+
 // ================= Debug-лог для анализа раздач =================
 
 const debugLog = [];
