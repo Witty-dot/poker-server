@@ -1,3 +1,19 @@
+// js/lobby.js (ES-модуль)
+
+import { SoundManager, SOUND_EVENTS } from './soundManager.js';
+
+// ========================================
+//  Инициализация звука
+// ========================================
+
+const sounds = new SoundManager({
+  basePath: '/sound',
+  profile: 'normal',
+  masterVolume: 1.0,
+});
+
+sounds.preloadAll();
+
 // ========================================
 //  Мок-данные столов (потом заменишь на API)
 // ========================================
@@ -251,7 +267,7 @@ function renderLobby() {
       btn.textContent = 'Сесть за стол';
     }
     btn.addEventListener('click', () => {
-      window.sounds?.play('ui-click');
+      sounds.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
       openTable(table);
     });
     cAction.appendChild(btn);
@@ -272,12 +288,6 @@ function renderLobby() {
 // ========================================
 
 function openTable(table) {
-  // На будущее:
-  // здесь можно дернуть API "joinTable" / "joinWaitlist",
-  // а затем открыть table.html с параметрами.
-  //
-  // Пока просто редиректим на один и тот же стол
-  // c query-параметром ?tableId=...
   const url = `/table.html?tableId=${encodeURIComponent(table.id)}`;
   window.location.href = url;
 }
@@ -288,7 +298,7 @@ function quickSeat() {
     .filter(t => t.seated < t.maxPlayers);
 
   if (!tables.length) {
-    window.sounds?.play('ui-click');
+    sounds.play(SOUND_EVENTS.UI_ERROR_SOFT);
     alert('Нет столов с свободными местами под текущие фильтры.');
     return;
   }
@@ -305,7 +315,7 @@ function quickSeat() {
     return b.avgPot - a.avgPot;
   });
 
-  window.sounds?.play('ui-click');
+  sounds.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
   openTable(tables[0]);
 }
 
@@ -317,7 +327,7 @@ function wireFilters() {
   // лимиты
   document.querySelectorAll('[data-limit]').forEach(btn => {
     btn.addEventListener('click', () => {
-      window.sounds?.play('ui-click');
+      sounds.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
       const val = btn.getAttribute('data-limit');
       state.limit = val;
 
@@ -331,7 +341,7 @@ function wireFilters() {
   // размер стола
   document.querySelectorAll('[data-size]').forEach(btn => {
     btn.addEventListener('click', () => {
-      window.sounds?.play('ui-click');
+      sounds.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
       const val = btn.getAttribute('data-size');
       state.size = val;
 
@@ -345,7 +355,7 @@ function wireFilters() {
   // чекбоксы-фильтры
   document.querySelectorAll('[data-filter]').forEach(btn => {
     btn.addEventListener('click', () => {
-      window.sounds?.play('ui-click');
+      sounds.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
       const key = btn.getAttribute('data-filter');
       if (key === 'only-free') {
         state.onlyFree = !state.onlyFree;
@@ -360,7 +370,7 @@ function wireFilters() {
   // сортировка по заголовкам
   document.querySelectorAll('.table-list-header div[data-sort]').forEach(header => {
     header.addEventListener('click', () => {
-      window.sounds?.play('ui-click');
+      sounds.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
       const sortKey = header.getAttribute('data-sort');
       if (state.sortBy === sortKey) {
         state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
@@ -384,7 +394,7 @@ function wireFilters() {
   const quickSeatBtn = document.getElementById('btnQuickSeat');
   if (quickSeatBtn) {
     quickSeatBtn.addEventListener('click', () => {
-      window.sounds?.play('ui-click');
+      sounds.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
       quickSeat();
     });
   }
