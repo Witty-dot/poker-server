@@ -1,6 +1,6 @@
 // js/soundManager.js
 // ===============================
-//  SoundManager с форсированным HTMLAudio
+//  SoundManager с пулом HTMLAudio-клонов
 // ===============================
 
 // 1. Карта событий
@@ -49,7 +49,7 @@ export const SOUND_DEFS = {
     category: 'ui',
   },
 
-  // Игровые действия (композитные — пока просто резолвятся в .wav-файлы)
+  // Игровые действия (композитные – пока сведены в один wav каждый)
   FOLD:   { type: 'composite', name: 'fold',   category: 'action' },
   CHECK:  { type: 'composite', name: 'check',  category: 'action' },
   CALL:   { type: 'composite', name: 'call',   category: 'action' },
@@ -111,10 +111,13 @@ export class SoundManager {
 
     this.muted = false;
 
-    // Кэш HTMLAudio по url
+    // Пул HTMLAudio: Map<url, Audio[]>
     this.htmlAudioCache = new Map();
 
-    // Флаг: ВСЕГДА HTMLAudio (Web Audio отключаем)
+    // Сколько инстансов на звук держим в пуле
+    this.poolSize = options.poolSize || 4;
+
+    // Web Audio выключен, форсим HTMLAudio
     this.useHtmlAudioFallback = true;
   }
 
@@ -179,25 +182,53 @@ export class SoundManager {
     });
 
     await Promise.all(
-      urls.map((url) => {
-        if (this.htmlAudioCache.has(url)) return Promise.resolve();
-        return new Promise((resolve) => {
-          const audio = new Audio(url);
-          audio.preload = 'auto';
-          audio.addEventListener('canplaythrough', () => resolve(), { once: true });
-          audio.addEventListener('error', () => {
-            console.warn('[SoundManager] preload error', url);
-            resolve();
-          }, { once: true });
-          this.htmlAudioCache.set(url, audio);
-        });
-      })
+      urls.map((url) => this._ensurePoolForUrl(url))
     );
   }
 
-  // iOS unlock – для HTMLAudio по сути не обязателен, но оставим
+  async _ensurePoolForUrl(url) {
+    // уже есть пул
+    if (this.htmlAudioCache.has(url)) return;
+
+    const pool = [];
+    for (let i = 0; i < this.poolSize; i++) {
+      const audio = new Audio(url);
+      audio.preload = 'auto';
+      pool.push(audio);
+    }
+
+    this.htmlAudioCache.set(url, pool);
+
+    // дождаться, пока хотя бы один сможет играть
+    await new Promise((resolve) => {
+      let resolved = false;
+      pool.forEach(a => {
+        a.addEventListener('canplaythrough', () => {
+          if (!resolved) {
+            resolved = true;
+            resolve();
+          }
+        }, { once: true });
+        a.addEventListener('error', () => {
+          if (!resolved) {
+            resolved = true;
+            resolve();
+          }
+        }, { once: true });
+      });
+      // если вообще не придёт ни один ивент — всё равно не зависаем
+      setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          resolve();
+        }
+      }, 3000);
+    });
+  }
+
+  // iOS unlock – для HTMLAudio почти не нужен
   async unlock() {
-    // Можно ничего не делать, главное, что play() вызывается из обработчика клика
+    // ничего не делаем, главное – play() вызывать из обработчика клика
     return;
   }
 
@@ -216,17 +247,31 @@ export class SoundManager {
 
     const volume = this._getEffectiveVolume(def.category);
 
-    let audio = this.htmlAudioCache.get(url);
+    let pool = this.htmlAudioCache.get(url);
+
+    // если пул ещё не создан (например, preloadAll не успели) — создаём на лету
+    if (!pool) {
+      pool = [new Audio(url)];
+      pool[0].preload = 'auto';
+      this.htmlAudioCache.set(url, pool);
+    }
+
+    // ищем свободный инстанс
+    let audio = pool.find(a => a.paused || a.ended);
+
+    // если свободного нет — клонируем первый, но не раздуваем до бесконечности
     if (!audio) {
-      // если не предзагружен — создаём на лету
-      audio = new Audio(url);
-      audio.preload = 'auto';
-      this.htmlAudioCache.set(url, audio);
+      if (pool.length < this.poolSize + 2) { // небольшой запас сверх poolSize
+        const clone = pool[0].cloneNode(true);
+        pool.push(clone);
+        audio = clone;
+      } else {
+        // если даже запас забит — берём самый "старый" и жёстко переигрываем
+        audio = pool[0];
+      }
     }
 
     try {
-      // чтобы клик был без задержки — сбрасываем и играем
-      audio.pause();
       audio.currentTime = 0;
       audio.volume = volume;
       audio.play().catch(() => {});
