@@ -1,7 +1,7 @@
 // index.js – многостоловый сервер Midnight Black Poker
 // -----------------------------------------------
 
-const lobbyManager = require('./lobbyManager');
+const lobbyManager = require('./js/lobbyManager');
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
