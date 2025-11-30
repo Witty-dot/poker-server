@@ -1,430 +1,271 @@
-import { SoundManager, SOUND_EVENTS } from './soundManager.js';
+// js/soundManager.js
+// ===============================
+//  SoundManager с пулом HTMLAudio и контролем готовности
+// ===============================
 
-// Один общий инстанс звука для лобби
-const sound = new SoundManager({
-  basePath: '/sound',
-  profile: 'normal',
-  masterVolume: 1.0,
-});
+export const SOUND_EVENTS = {
+  UI_CLICK_PRIMARY: 'UI_CLICK_PRIMARY',
+  UI_CLICK_SECONDARY: 'UI_CLICK_SECONDARY',
+  UI_ERROR_SOFT: 'UI_ERROR_SOFT',
+  UI_ERROR_HARD: 'UI_ERROR_HARD',
 
-// Флаги звука
-let soundWarmupDone = false; // был вызван warmup
-let soundReady = false;      // preloadAll завершился
+  FOLD: 'FOLD',
+  CHECK: 'CHECK',
+  CALL: 'CALL',
+  BET: 'BET',
+  ALLIN: 'ALLIN',
 
-// Хелпер: безопасное проигрывание
-function playSound(eventName) {
-  if (!soundReady) return;      // звуки ещё не готовы – молчим
-  sound.play(eventName);
-}
+  CARD_DEAL: 'CARD_DEAL',
+  CARD_BOARD: 'CARD_BOARD',
+  DECK_SHUFFLE: 'DECK_SHUFFLE',
+  POT_WIN: 'POT_WIN',
 
-// Разогрев по первому пользовательскому действию (обязательно для iOS)
-async function warmupSounds() {
-  if (soundWarmupDone) return;
-  soundWarmupDone = true;
-
-  try {
-    // “будим” аудиоконтекст (на будущее) и подгружаем все звуки
-    await sound.unlock();
-    await sound.preloadAll();
-  } catch (e) {
-    console.warn('[Lobby] warmup error', e);
-  } finally {
-    // Даже если preloadAll упал частично – чтобы не висеть в вечном "не готово"
-    soundReady = true;
-  }
-}
-
-// Первый любой тап/клик по странице — триггерим warmup
-document.addEventListener('pointerdown', () => {
-  warmupSounds();
-}, { once: true });
-
-// ========================================
-//  Мок-данные столов (потом заменишь на API)
-// ========================================
-
-const MOCK_TABLES = [
-  {
-    id: 'MB-001',
-    name: 'Aurora',
-    stakesSB: 10,
-    stakesBB: 20,
-    currency: 'MBC',
-    maxPlayers: 6,
-    seated: 4,
-    avgPot: 1120,
-    handsPerHour: 76,
-    speed: 'normal',      // normal | fast
-    waitlist: 0,
-    isVip: false
-  },
-  {
-    id: 'MB-002',
-    name: 'Nebula',
-    stakesSB: 50,
-    stakesBB: 100,
-    currency: 'MBC',
-    maxPlayers: 6,
-    seated: 6,
-    avgPot: 4200,
-    handsPerHour: 82,
-    speed: 'fast',
-    waitlist: 2,
-    isVip: true
-  },
-  {
-    id: 'MB-003',
-    name: 'Gravity',
-    stakesSB: 1,
-    stakesBB: 2,
-    currency: 'MBC',
-    maxPlayers: 9,
-    seated: 8,
-    avgPot: 240,
-    handsPerHour: 62,
-    speed: 'normal',
-    waitlist: 0,
-    isVip: false
-  },
-  {
-    id: 'MB-004',
-    name: 'Nova',
-    stakesSB: 5,
-    stakesBB: 10,
-    currency: 'MBC',
-    maxPlayers: 6,
-    seated: 3,
-    avgPot: 680,
-    handsPerHour: 70,
-    speed: 'fast',
-    waitlist: 0,
-    isVip: false
-  },
-  {
-    id: 'MB-005',
-    name: 'Quasar',
-    stakesSB: 100,
-    stakesBB: 200,
-    currency: 'MBC',
-    maxPlayers: 6,
-    seated: 5,
-    avgPot: 12800,
-    handsPerHour: 65,
-    speed: 'normal',
-    waitlist: 1,
-    isVip: true
-  }
-];
-
-// ========================================
-//  Состояние фильтров / сортировки
-// ========================================
-
-const state = {
-  limit: 'all',         // all | micro | low | mid | high
-  size: 'all',          // all | 6max | 9max
-  onlyFree: false,
-  onlyFast: false,
-  sortBy: 'stakes',     // name | stakes | players | avgPot | hph
-  sortDir: 'asc'
+  TIMER_TICK: 'TIMER_TICK',
+  TIMER_URGENT: 'TIMER_URGENT',
 };
 
-// ========================================
-//  Утилиты
-// ========================================
+export const SOUND_DEFS = {
+  UI_CLICK_PRIMARY: {
+    type: 'base',
+    file: 'processed/base/wav/mixkit-cool-interface-click-tone-2568.wav',
+    category: 'ui',
+  },
+  UI_CLICK_SECONDARY: {
+    type: 'base',
+    file: 'processed/base/wav/mixkit-interface-click-1126.wav',
+    category: 'ui',
+  },
+  UI_ERROR_SOFT: {
+    type: 'base',
+    file: 'processed/base/wav/mixkit-click-error-1110.wav',
+    category: 'ui',
+  },
+  UI_ERROR_HARD: {
+    type: 'base',
+    file: 'processed/base/wav/mixkit-negative-tone-interface-tap-2569.wav',
+    category: 'ui',
+  },
 
-function formatChips(v) {
-  return (Number(v) || 0).toLocaleString('ru-RU');
-}
+  FOLD:   { type: 'composite', name: 'fold',   category: 'action' },
+  CHECK:  { type: 'composite', name: 'check',  category: 'action' },
+  CALL:   { type: 'composite', name: 'call',   category: 'action' },
+  BET:    { type: 'composite', name: 'bet',    category: 'action' },
+  ALLIN:  { type: 'composite', name: 'allin',  category: 'action' },
 
-function stakesToLimitBand(bb) {
-  if (bb <= 4) return 'micro';
-  if (bb <= 20) return 'low';
-  if (bb <= 100) return 'mid';
-  return 'high';
-}
+  CARD_DEAL: {
+    type: 'base',
+    file: 'processed/base/wav/mixkit-poker-card-flick-2002.wav',
+    category: 'action',
+  },
+  CARD_BOARD: {
+    type: 'base',
+    file: 'processed/base/wav/mixkit-poker-card-placement-2001.wav',
+    category: 'action',
+  },
+  DECK_SHUFFLE: {
+    type: 'base',
+    file: 'processed/base/wav/mixkit-thin-metal-card-deck-shuffle-3175.wav',
+    category: 'ambient',
+  },
+  POT_WIN: {
+    type: 'base',
+    file: 'processed/base/wav/mixkit-clinking-coins-1993.wav',
+    category: 'action',
+  },
 
-// ========================================
-//  Фильтрация и сортировка
-// ========================================
+  TIMER_TICK: {
+    type: 'base',
+    file: 'processed/base/wav/mixkit-tick-tock-clock-timer-1045.wav',
+    category: 'ambient',
+  },
+  TIMER_URGENT: {
+    type: 'base',
+    file: 'processed/base/wav/mixkit-fast-wall-clock-ticking-1063.wav',
+    category: 'ambient',
+  },
+};
 
-function getFilteredTables() {
-  let list = [...MOCK_TABLES];
+export class SoundManager {
+  constructor(options = {}) {
+    this.basePath = options.basePath || '/sound';
+    this.profile  = options.profile || 'normal';
 
-  // лимит
-  if (state.limit !== 'all') {
-    list = list.filter(t => stakesToLimitBand(t.stakesBB) === state.limit);
+    this.masterVolume = this._clamp01(
+      typeof options.masterVolume === 'number' ? options.masterVolume : 1.0
+    );
+    this.categoryVolumes = {
+      ui: 1.0,
+      action: 1.0,
+      ambient: 1.0,
+      ...(options.categoryVolumes || {}),
+    };
+
+    this.muted = false;
+
+    // Пул HTMLAudio: Map<url, Audio[]>
+    this.htmlAudioCache = new Map();
+    // Какие URL уже готовы к проигрыванию (canplaythrough был)
+    this.readyUrls = new Set();
+
+    // Сколько инстансов на звук держим в пуле
+    this.poolSize = options.poolSize || 4;
+
+    // Web Audio выключен – всегда HTMLAudio
+    this.useHtmlAudioFallback = true;
   }
 
-  // размер стола
-  if (state.size === '6max') {
-    list = list.filter(t => t.maxPlayers <= 6);
-  } else if (state.size === '9max') {
-    list = list.filter(t => t.maxPlayers >= 7);
-  }
-
-  // только свободные места
-  if (state.onlyFree) {
-    list = list.filter(t => t.seated < t.maxPlayers);
-  }
-
-  // только fast
-  if (state.onlyFast) {
-    list = list.filter(t => t.speed === 'fast');
-  }
-
-  // сортировка
-  const dir = state.sortDir === 'asc' ? 1 : -1;
-  list.sort((a, b) => {
-    let va, vb;
-    switch (state.sortBy) {
-      case 'name':
-        va = a.name; vb = b.name;
-        return va.localeCompare(vb) * dir;
-      case 'stakes':
-        va = a.stakesBB; vb = b.stakesBB;
-        break;
-      case 'players':
-        va = a.seated / a.maxPlayers;
-        vb = b.seated / b.maxPlayers;
-        break;
-      case 'avgPot':
-        va = a.avgPot; vb = b.avgPot;
-        break;
-      case 'hph':
-        va = a.handsPerHour; vb = b.handsPerHour;
-        break;
-      default:
-        va = 0; vb = 0;
+  setProfile(profile) {
+    if (profile === 'normal' || profile === 'quiet' || profile === 'loud') {
+      this.profile = profile;
     }
-    return (va - vb) * dir;
-  });
+  }
 
-  return list;
-}
+  setMasterVolume(volume) {
+    this.masterVolume = this._clamp01(volume);
+  }
 
-// ========================================
-//  Рендер
-// ========================================
+  setCategoryVolume(category, volume) {
+    if (!(category in this.categoryVolumes)) return;
+    this.categoryVolumes[category] = this._clamp01(volume);
+  }
 
-const rowsContainer  = document.getElementById('tableRows');
-const tablesCountEl  = document.getElementById('tablesCount');
-const playersCountEl = document.getElementById('playersCount');
+  mute()  { this.muted = true;  }
+  unmute(){ this.muted = false; }
+  toggleMute() { this.muted = !this.muted; }
 
-function renderLobby() {
-  const tables = getFilteredTables();
+  _clamp01(v) {
+    return Math.min(1, Math.max(0, v));
+  }
 
-  // шапка (количество)
-  const totalPlayers = tables.reduce((s, t) => s + t.seated, 0);
-  if (tablesCountEl)  tablesCountEl.textContent  = `${tables.length} столов`;
-  if (playersCountEl) playersCountEl.textContent = `${totalPlayers} игроков онлайн`;
+  _getEffectiveVolume(category) {
+    const catVol = this.categoryVolumes[category] ?? 1.0;
+    return this._clamp01(this.masterVolume * catVol);
+  }
 
-  if (!rowsContainer) return;
+  _resolveUrl(eventName) {
+    const def = SOUND_DEFS[eventName];
+    if (!def) return null;
 
-  rowsContainer.innerHTML = '';
-  if (!tables.length) {
-    const empty = document.createElement('div');
-    empty.style.padding = '10px';
-    empty.style.fontSize = '12px';
-    empty.style.color = '#9a9aad';
-    empty.textContent = 'Нет столов, подходящих под выбранные фильтры.';
-    rowsContainer.appendChild(empty);
+    if (def.type === 'base') {
+      return `${this.basePath}/${def.file}`;
+    }
+
+    if (def.type === 'composite') {
+      const profile = this.profile;
+      const fileName = `${def.name}_${profile}.wav`;
+      return `${this.basePath}/processed/composite/wav/${profile}/${fileName}`;
+    }
+
+    return null;
+  }
+
+  async preloadAll() {
+    const urls = [];
+
+    Object.keys(SOUND_DEFS).forEach((eventName) => {
+      const url = this._resolveUrl(eventName);
+      if (!url) return;
+      urls.push(url);
+    });
+
+    await Promise.all(urls.map((url) => this._ensurePoolForUrl(url)));
+  }
+
+  async _ensurePoolForUrl(url) {
+    if (this.htmlAudioCache.has(url)) return;
+
+    const pool = [];
+    for (let i = 0; i < this.poolSize; i++) {
+      const audio = new Audio(url);
+      audio.preload = 'auto';
+      pool.push(audio);
+    }
+    this.htmlAudioCache.set(url, pool);
+
+    await new Promise((resolve) => {
+      let resolved = false;
+
+      const markReady = () => {
+        if (!resolved) {
+          resolved = true;
+          this.readyUrls.add(url);
+          resolve();
+        }
+      };
+
+      pool.forEach(a => {
+        a.addEventListener('canplaythrough', markReady, { once: true });
+        a.addEventListener('error', () => {
+          console.warn('[SoundManager] preload error', url);
+          markReady();
+        }, { once: true });
+      });
+
+      setTimeout(markReady, 3000);
+    });
+  }
+
+  async unlock() {
+    // для HTMLAudio ничего не делаем, главное — вызов play() из user gesture
     return;
   }
 
-  tables.forEach(table => {
-    const row = document.createElement('div');
-    row.className = 'table-row';
-
-    const freeSeats = table.maxPlayers - table.seated;
-    const fillPercent = Math.max(0, Math.min(100, (table.seated / table.maxPlayers) * 100));
-
-    // 1. Имя стола + теги
-    const cName = document.createElement('div');
-    cName.innerHTML = `
-      <div class="table-name-main">${table.name}</div>
-      <div class="table-name-sub">
-        ${table.maxPlayers}-max · ${
-          table.speed === 'fast' ? 'Fast' : 'Regular'
-        }${table.isVip ? ' · VIP' : ''}
-      </div>
-    `;
-
-    // 2. Лимит
-    const cStakes = document.createElement('div');
-    cStakes.className = 'limit-text';
-    cStakes.textContent = `NL ${table.stakesSB}/${table.stakesBB} ${table.currency}`;
-
-    // 3. Игроки
-    const cPlayers = document.createElement('div');
-    cPlayers.className = 'players-cell';
-    cPlayers.innerHTML = `
-      <span>${table.seated}/${table.maxPlayers}</span>
-      <div class="players-bar">
-        <div class="players-fill" style="width:${fillPercent}%"></div>
-      </div>
-    `;
-
-    // 4. Средний банк
-    const cAvg = document.createElement('div');
-    cAvg.textContent = `${formatChips(table.avgPot)} ${table.currency}`;
-
-    // 5. Руки/час + теги
-    const cHph = document.createElement('div');
-    const tags = [];
-    if (table.speed === 'fast') tags.push('<span class="tag tag-fast">Fast</span>');
-    if (table.isVip)           tags.push('<span class="tag tag-vip">VIP</span>');
-    cHph.innerHTML = `
-      <span class="nowrap">${table.handsPerHour} рук/час</span>
-      ${tags.length ? ' · ' + tags.join(' ') : ''}
-    `;
-
-    // 6. Кнопка
-    const cAction = document.createElement('div');
-    const btn = document.createElement('button');
-    btn.className = 'btn-seat';
-    if (freeSeats <= 0) {
-      btn.classList.add('btn-seat-full');
-      btn.textContent = table.waitlist > 0
-        ? `Ожидание (${table.waitlist})`
-        : 'Сесть в лист ожидания';
-    } else {
-      btn.textContent = 'Сесть за стол';
+  play(eventName) {
+    const def = SOUND_DEFS[eventName];
+    if (!def) {
+      console.warn('[SoundManager] Unknown event', eventName);
+      return;
     }
-    btn.addEventListener('click', () => {
-      playSound(SOUND_EVENTS.UI_CLICK_PRIMARY);
-      openTable(table);
-    });
-    cAction.appendChild(btn);
+    if (this.muted) return;
 
-    row.appendChild(cName);
-    row.appendChild(cStakes);
-    row.appendChild(cPlayers);
-    row.appendChild(cAvg);
-    row.appendChild(cHph);
-    row.appendChild(cAction);
+    const url = this._resolveUrl(eventName);
+    if (!url) return;
 
-    rowsContainer.appendChild(row);
-  });
-}
+    const volume = this._getEffectiveVolume(def.category);
 
-// ========================================
-//  Открытие стола
-// ========================================
+    let pool = this.htmlAudioCache.get(url);
 
-function openTable(table) {
-  const url = `/table.html?tableId=${encodeURIComponent(table.id)}`;
-  window.location.href = url;
-}
+    // если пула ещё нет – создаём, но пока НЕ считаем url готовым
+    if (!pool) {
+      pool = [new Audio(url)];
+      pool[0].preload = 'auto';
+      this.htmlAudioCache.set(url, pool);
 
-// Быстрая посадка — выбираем лучший стол по текущим фильтрам
-function quickSeat() {
-  const tables = getFilteredTables()
-    .filter(t => t.seated < t.maxPlayers);
+      // подписываемся на canplaythrough, чтобы отметить готовность
+      const audio = pool[0];
+      audio.addEventListener('canplaythrough', () => {
+        this.readyUrls.add(url);
+      }, { once: true });
+      audio.addEventListener('error', () => {
+        console.warn('[SoundManager] load error', url);
+        this.readyUrls.add(url); // чтобы не висеть вечно
+      }, { once: true });
+    }
 
-  if (!tables.length) {
-    playSound(SOUND_EVENTS.UI_ERROR_SOFT);
-    alert('Нет столов с свободными местами под текущие фильтры.');
-    return;
-  }
+    // Если звук ещё не готов – просто игнорируем (НЕ накапливаем очередь)
+    if (!this.readyUrls.has(url)) {
+      return;
+    }
 
-  // Сортируем по лимиту ближе к mid-range и по заполняемости
-  tables.sort((a, b) => {
-    const aFill = a.seated / a.maxPlayers;
-    const bFill = b.seated / b.maxPlayers;
-    // ближе к 70% заполнения
-    const aScore = Math.abs(aFill - 0.7);
-    const bScore = Math.abs(bFill - 0.7);
-    if (aScore !== bScore) return aScore - bScore;
-    // если одинаково — по среднему банку
-    return b.avgPot - a.avgPot;
-  });
+    // ищем свободный инстанс
+    let audio = pool.find(a => a.paused || a.ended);
 
-  playSound(SOUND_EVENTS.UI_CLICK_PRIMARY);
-  openTable(tables[0]);
-}
-
-// ========================================
-//  Привязка UI
-// ========================================
-
-function wireFilters() {
-  // лимиты
-  document.querySelectorAll('[data-limit]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      playSound(SOUND_EVENTS.UI_CLICK_PRIMARY);
-      const val = btn.getAttribute('data-limit');
-      state.limit = val;
-
-      document.querySelectorAll('[data-limit]').forEach(x => x.classList.remove('chip-active'));
-      btn.classList.add('chip-active');
-
-      renderLobby();
-    });
-  });
-
-  // размер стола
-  document.querySelectorAll('[data-size]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      playSound(SOUND_EVENTS.UI_CLICK_PRIMARY);
-      const val = btn.getAttribute('data-size');
-      state.size = val;
-
-      document.querySelectorAll('[data-size]').forEach(x => x.classList.remove('chip-active'));
-      btn.classList.add('chip-active');
-
-      renderLobby();
-    });
-  });
-
-  // чекбоксы-фильтры
-  document.querySelectorAll('[data-filter]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      playSound(SOUND_EVENTS.UI_CLICK_PRIMARY);
-      const key = btn.getAttribute('data-filter');
-      if (key === 'only-free') {
-        state.onlyFree = !state.onlyFree;
-      } else if (key === 'fast') {
-        state.onlyFast = !state.onlyFast;
-      }
-      btn.classList.toggle('chip-active');
-      renderLobby();
-    });
-  });
-
-  // сортировка по заголовкам
-  document.querySelectorAll('.table-list-header div[data-sort]').forEach(header => {
-    header.addEventListener('click', () => {
-      playSound(SOUND_EVENTS.UI_CLICK_PRIMARY);
-      const sortKey = header.getAttribute('data-sort');
-      if (state.sortBy === sortKey) {
-        state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+    if (!audio) {
+      if (pool.length < this.poolSize + 2) {
+        const clone = pool[0].cloneNode(true);
+        pool.push(clone);
+        audio = clone;
       } else {
-        state.sortBy = sortKey;
-        state.sortDir = sortKey === 'name' ? 'asc' : 'desc';
+        audio = pool[0];
       }
+    }
 
-      // стрелочки
-      const arrows = document.querySelectorAll('[data-sort-arrow]');
-      arrows.forEach(a => a.textContent = '▲');
-      const currentArrow = document.querySelector(`[data-sort-arrow="${sortKey}"]`);
-      if (currentArrow) {
-        currentArrow.textContent = state.sortDir === 'asc' ? '▲' : '▼';
-      }
-
-      renderLobby();
-    });
-  });
-
-  const quickSeatBtn = document.getElementById('btnQuickSeat');
-  if (quickSeatBtn) {
-    quickSeatBtn.addEventListener('click', () => {
-      playSound(SOUND_EVENTS.UI_CLICK_PRIMARY);
-      quickSeat();
-    });
+    try {
+      audio.currentTime = 0;
+      audio.volume = volume;
+      audio.play().catch(() => {});
+    } catch (e) {
+      console.warn('[SoundManager] HTMLAudio play error', e);
+    }
   }
 }
-
-// старт
-wireFilters();
-renderLobby();
