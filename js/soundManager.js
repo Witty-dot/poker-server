@@ -1,6 +1,9 @@
 // js/soundManager.js
+// ===============================
+//  Web Audio SoundManager
+// ===============================
 
-// 1. Константы событий (чтобы не писать строки руками)
+// 1. Карта событий (как и раньше)
 export const SOUND_EVENTS = {
   UI_CLICK_PRIMARY: 'UI_CLICK_PRIMARY',
   UI_CLICK_SECONDARY: 'UI_CLICK_SECONDARY',
@@ -22,19 +25,17 @@ export const SOUND_EVENTS = {
   TIMER_URGENT: 'TIMER_URGENT',
 };
 
-// 2. Описание, какой звук к какому событию привязан
-//   profile: используется только для композитных (fold/call/bet/allin/check)
-//   base: одиночные wav из processed/base/wav
+// 2. Какие файлы за какими событиями закреплены
 export const SOUND_DEFS = {
-  // UI
+  // UI-клики
   UI_CLICK_PRIMARY: {
     type: 'base',
-    file: 'processed/base/wav/mixkit-select-click-1126.wav',
+    file: 'processed/base/wav/mixkit-select-click-1109.wav', // можно сменить на более мягкий
     category: 'ui',
   },
   UI_CLICK_SECONDARY: {
     type: 'base',
-    file: 'processed/base/wav/mixkit-interface-click-1125.wav',
+    file: 'processed/base/wav/mixkit-interface-click-1126.wav',
     category: 'ui',
   },
   UI_ERROR_SOFT: {
@@ -48,7 +49,7 @@ export const SOUND_DEFS = {
     category: 'ui',
   },
 
-  // Игровые действия (композитные, с профилями громкости)
+  // Игровые действия (композитные)
   FOLD:   { type: 'composite', name: 'fold',   category: 'action' },
   CHECK:  { type: 'composite', name: 'check',  category: 'action' },
   CALL:   { type: 'composite', name: 'call',   category: 'action' },
@@ -89,21 +90,15 @@ export const SOUND_DEFS = {
   },
 };
 
-/**
- * Простой аудио-менеджер для браузера
- * - preloadAll() прогревает звуки
- * - play(eventName) проигрывает
- * - mute/unmute, setMasterVolume, setProfile(normal/quiet/loud)
- */
+// ===============================
+//   КЛАСС МЕНЕДЖЕРА ЗВУКА
+// ===============================
+
 export class SoundManager {
   constructor(options = {}) {
-    // Базовый путь к /sound
     this.basePath = options.basePath || '/sound';
+    this.profile  = options.profile || 'normal';
 
-    // Профиль громкости композитных звуков (normal / quiet / loud)
-    this.profile = options.profile || 'normal';
-
-    // Громкости
     this.masterVolume = this._clamp01(
       typeof options.masterVolume === 'number' ? options.masterVolume : 1.0
     );
@@ -116,15 +111,24 @@ export class SoundManager {
 
     this.muted = false;
 
-    // Кэш Audio-объектов (по финальному URL)
-    this.audioCache = new Map();
+    // Web Audio
+    this.audioContext = null;        // создаём лениво
+    this.buffers = new Map();        // url -> AudioBuffer
+    this.loading = new Map();        // url -> Promise<AudioBuffer>
+
+    // fallback для старых браузеров
+    this.useHtmlAudioFallback = !(
+      typeof window !== 'undefined' &&
+      (window.AudioContext || window.webkitAudioContext)
+    );
+    this.htmlAudioCache = new Map();
   }
+
+  // ========= ПУБЛИЧНЫЕ НАСТРОЙКИ =========
 
   setProfile(profile) {
     if (profile === 'normal' || profile === 'quiet' || profile === 'loud') {
       this.profile = profile;
-    } else {
-      console.warn('[SoundManager] Unknown profile:', profile);
     }
   }
 
@@ -137,121 +141,206 @@ export class SoundManager {
     this.categoryVolumes[category] = this._clamp01(volume);
   }
 
-  mute() {
-    this.muted = true;
-  }
+  mute()  { this.muted = true;  }
+  unmute(){ this.muted = false; }
+  toggleMute() { this.muted = !this.muted; }
 
-  unmute() {
-    this.muted = false;
-  }
-
-  toggleMute() {
-    this.muted = !this.muted;
-  }
+  // ========= ВНУТРЕННЕЕ =========
 
   _clamp01(v) {
     return Math.min(1, Math.max(0, v));
   }
 
-  // Посчитать итоговую громкость (master * category)
   _getEffectiveVolume(category) {
     const catVol = this.categoryVolumes[category] ?? 1.0;
-    return this.masterVolume * catVol;
+    return this._clamp01(this.masterVolume * catVol);
   }
 
-  // Получить URL к файлу по событию
+  _getAudioContext() {
+    if (this.useHtmlAudioFallback) return null;
+
+    if (!this.audioContext) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      this.audioContext = new Ctx();
+    }
+    // iOS может держать контекст в suspended
+    if (this.audioContext.state === 'suspended') {
+      this.audioContext.resume().catch(() => {});
+    }
+    return this.audioContext;
+  }
+
   _resolveUrl(eventName) {
     const def = SOUND_DEFS[eventName];
-    if (!def) {
-      console.warn('[SoundManager] No sound def for', eventName);
-      return null;
-    }
+    if (!def) return null;
 
     if (def.type === 'base') {
-      // /sound/processed/base/wav/имя.wav
       return `${this.basePath}/${def.file}`;
     }
 
     if (def.type === 'composite') {
-      // /sound/processed/composite/wav/normal/fold_normal.wav
       const profile = this.profile;
       const fileName = `${def.name}_${profile}.wav`;
       return `${this.basePath}/processed/composite/wav/${profile}/${fileName}`;
     }
 
-    console.warn('[SoundManager] Unknown sound type for', eventName);
     return null;
   }
 
-  // Предзагрузка всех звуков (по текущему профилю)
-  preloadAll() {
-    const promises = [];
+  // Загрузить AudioBuffer для url (с кешем)
+  async _loadBuffer(url) {
+    // если уже загружаем — вернуть текущий промис
+    if (this.loading.has(url)) {
+      return this.loading.get(url);
+    }
+
+    const ctx = this._getAudioContext();
+    if (!ctx) return null;
+
+    const p = (async () => {
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const arrayBuffer = await response.arrayBuffer();
+
+        // decodeAudioData иногда требует колбэка, но промис-версия уже норм
+        const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+        this.buffers.set(url, audioBuffer);
+        return audioBuffer;
+      } catch (err) {
+        console.warn('[SoundManager] Failed to load', url, err);
+        return null;
+      } finally {
+        this.loading.delete(url);
+      }
+    })();
+
+    this.loading.set(url, p);
+    return p;
+  }
+
+  // ========= ПРЕДЗАГРУЗКА =========
+
+  /**
+   * Предзагрузка всех звуков (по текущему профилю).
+   * Обязательно вызывать после первого пользовательского жеста
+   * (tap/click), чтобы iOS не ругалась.
+   */
+  async preloadAll() {
+    const urls = [];
 
     Object.keys(SOUND_DEFS).forEach((eventName) => {
       const url = this._resolveUrl(eventName);
       if (!url) return;
-
-      if (this.audioCache.has(url)) return;
-
-      const audio = new Audio(url);
-      this.audioCache.set(url, audio);
-
-      const p = new Promise((resolve) => {
-        audio.addEventListener('canplaythrough', () => resolve(), { once: true });
-        audio.addEventListener(
-          'error',
-          () => {
-            console.warn('[SoundManager] Error preloading', url);
-            resolve();
-          },
-          { once: true }
-        );
-      });
-
-      promises.push(p);
+      urls.push(url);
     });
 
-    return Promise.all(promises);
-  }
-
-  // Проиграть звук события
-  play(eventName) {
-  const def = SOUND_DEFS[eventName];
-  if (!def) {
-    console.warn('[SoundManager] Unknown sound event', eventName);
-    return;
-  }
-  if (this.muted) return;
-
-  const url = this._resolveUrl(eventName);
-  if (!url) return;
-
-  let audio = this.audioCache.get(url);
-  if (!audio) {
-    audio = new Audio(url);
-    audio.preload = 'auto';
-    this.audioCache.set(url, audio);
-  }
-
-  const volume = this._getEffectiveVolume(def.category);
-
-  // === МГНОВЕННЫЙ режим для UI-кликов ===
-  if (def.category === 'ui') {
-    try {
-      audio.pause();           // на всякий случай
-      audio.currentTime = 0;   // в начало
-      audio.volume = this._clamp01(volume);
-      audio.play().catch(() => {});
-    } catch (e) {
-      // молча игнорируем
+    if (this.useHtmlAudioFallback) {
+      // Для fallback создаём <audio> и даём им прогрузиться
+      await Promise.all(
+        urls.map((url) => {
+          if (this.htmlAudioCache.has(url)) return Promise.resolve();
+          return new Promise((resolve) => {
+            const audio = new Audio(url);
+            audio.preload = 'auto';
+            audio.addEventListener('canplaythrough', () => resolve(), { once: true });
+            audio.addEventListener('error', () => resolve(), { once: true });
+            this.htmlAudioCache.set(url, audio);
+          });
+        })
+      );
+      return;
     }
-    return;
+
+    const ctx = this._getAudioContext();
+    if (!ctx) return;
+
+    await Promise.all(
+      urls.map(async (url) => {
+        if (this.buffers.has(url)) return;
+        const buffer = await this._loadBuffer(url);
+        return buffer;
+      })
+    );
   }
 
-  // === Остальные звуки можно класть поверх друг друга ===
-  const instance = audio.cloneNode(true);
-  instance.volume = this._clamp01(volume);
-  instance.currentTime = 0;
-  instance.play().catch(() => {});
-}
+  // Небольшой хак для iOS: “разбудить” аудио по первому тапу
+  async unlock() {
+    const ctx = this._getAudioContext();
+    if (!ctx) return;
+
+    if (ctx.state === 'suspended') {
+      try {
+        await ctx.resume();
+      } catch (_) {}
+    }
+
+    // можно проиграть ультра-короткий тихий звук, но это опционально
+  }
+
+  // ========= ВОСПРОИЗВЕДЕНИЕ =========
+
+  play(eventName) {
+    const def = SOUND_DEFS[eventName];
+    if (!def) {
+      console.warn('[SoundManager] Unknown event', eventName);
+      return;
+    }
+    if (this.muted) return;
+
+    const url = this._resolveUrl(eventName);
+    if (!url) return;
+
+    const volume = this._getEffectiveVolume(def.category);
+
+    // ---- Fallback через HTMLAudio, если Web Audio недоступен ----
+    if (this.useHtmlAudioFallback) {
+      let audio = this.htmlAudioCache.get(url);
+      if (!audio) {
+        audio = new Audio(url);
+        audio.preload = 'auto';
+        this.htmlAudioCache.set(url, audio);
+      }
+
+      try {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.volume = volume;
+        audio.play().catch(() => {});
+      } catch (_) {}
+      return;
+    }
+
+    // ---- Основной путь: Web Audio API ----
+    const ctx = this._getAudioContext();
+    if (!ctx) return;
+
+    // если уже есть буфер — играем сразу
+    const buffered = this.buffers.get(url);
+    if (buffered) {
+      this._playBuffer(ctx, buffered, volume);
+      return;
+    }
+
+    // если ещё не загружен — подгружаем и после этого играем
+    this._loadBuffer(url).then((buffer) => {
+      if (!buffer) return;
+      this._playBuffer(ctx, buffer, volume);
+    });
+  }
+
+  _playBuffer(ctx, buffer, volume) {
+    try {
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+
+      const gainNode = ctx.createGain();
+      gainNode.gain.value = volume;
+
+      source.connect(gainNode).connect(ctx.destination);
+      source.start(0);
+    } catch (err) {
+      console.warn('[SoundManager] play buffer error', err);
+    }
+  }
 }
