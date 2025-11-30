@@ -16,7 +16,7 @@ function getQueryParam(name) {
 
 const tableIdFromUrl = getQueryParam('tableId') || null;
 // На будущее под лимиты; серверу можно уже сейчас отправлять, он просто проигнорит
-const limitIdFromUrl = getQueryParam('limitId') || 'NL10-20';
+const limitIdFromUrl = getQueryParam('limitId') || 'nl_10_20';
 
 // -----------------------------------------------------
 //  Socket.io подключение
