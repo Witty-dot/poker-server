@@ -1,26 +1,26 @@
-// js/lobby.js (ES-модуль)
-
 import { SoundManager, SOUND_EVENTS } from './soundManager.js';
 
-// ========================================
-//  Инициализация звука
-// ========================================
-
-const sounds = new SoundManager({
+// Один общий инстанс звука для лобби
+const sound = new SoundManager({
   basePath: '/sound',
   profile: 'normal',
   masterVolume: 1.0,
 });
-// Разогрев по первому взаимодействию пользователя (требование iOS)
+
+// Разогрев по первому пользовательскому действию (обязательно для iOS)
 let soundWarmupDone = false;
-const warmup = () => {
+
+function warmupSounds() {
   if (soundWarmupDone) return;
   soundWarmupDone = true;
-  sound.preloadAll();
-};
 
-document.addEventListener('pointerdown', warmup, { once: true });
-sounds.preloadAll();
+  // “будим” аудиоконтекст и подгружаем все звуки
+  sound.unlock();
+  sound.preloadAll();
+}
+
+// Первый любой тап/клик по странице — триггерим warmup
+document.addEventListener('pointerdown', warmupSounds, { once: true });
 
 // ========================================
 //  Мок-данные столов (потом заменишь на API)
