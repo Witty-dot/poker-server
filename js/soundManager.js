@@ -97,7 +97,7 @@ export const SOUND_DEFS = {
 export class SoundManager {
   constructor(options = {}) {
     this.basePath = options.basePath || '/sound';
-    this.profile  = options.profile || 'normal';
+    this.profile  = options.profile || 'quiet';
 
     this.masterVolume = this._clamp01(
       typeof options.masterVolume === 'number' ? options.masterVolume : 1.0
