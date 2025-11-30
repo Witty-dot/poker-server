@@ -11,7 +11,15 @@ const sounds = new SoundManager({
   profile: 'normal',
   masterVolume: 1.0,
 });
+// Разогрев по первому взаимодействию пользователя (требование iOS)
+let soundWarmupDone = false;
+const warmup = () => {
+  if (soundWarmupDone) return;
+  soundWarmupDone = true;
+  sound.preloadAll();
+};
 
+document.addEventListener('pointerdown', warmup, { once: true });
 sounds.preloadAll();
 
 // ========================================
