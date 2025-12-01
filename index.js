@@ -1380,12 +1380,6 @@ function createTableEngine(io, config) {
       autoStartIfReady('player joined');
     },
 
-      table.players.push(player);
-      console.log(logPrefix(), `Player joined: ${name}`);
-      pushSnapshot('player joined', table);
-      broadcastGameState();
-    },
-
     removePlayer(socketId) {
       const idx = table.players.findIndex(p => p.id === socketId);
       if (idx >= 0) {
