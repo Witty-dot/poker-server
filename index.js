@@ -1378,7 +1378,7 @@ function createTableEngine(io, config) {
 
       // Проверяем, не пора ли запускать раздачу
       autoStartIfReady('player joined');
-   },
+    },
 
       table.players.push(player);
       console.log(logPrefix(), `Player joined: ${name}`);
