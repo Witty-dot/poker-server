@@ -243,33 +243,37 @@ function positionDealerChip(state) {
   const seatCx  = seatRect.left + seatRect.width   / 2;
   const seatCy  = seatRect.top  + seatRect.height  / 2;
 
-  // Радиальный вектор: от центра стола к сиденью
+  // --- размер фишки пропорционален ширине стола ---
+  const tableWidth = tableRect.width || 600;
+  const chipSize = Math.max(18, Math.min(26, tableWidth * 0.035)); // ~3.5% ширины
+  dealerChipEl.style.width  = chipSize + 'px';
+  dealerChipEl.style.height = chipSize + 'px';
+
+  const chipRadius = chipSize / 2;
+
+  // Радиальный вектор: от центра стола к сиденью (наружу)
   let vx = seatCx - tableCx;
   let vy = seatCy - tableCy;
   const len = Math.sqrt(vx * vx + vy * vy) || 1;
   vx /= len;
   vy /= len;
 
-  // Тангенциальный вектор по часовой стрелке вдоль бортика:
-  // (vx, vy) -> (-vy, vx)
-  let tx = -vy;
-  let ty =  vx;
+  // Тангенциальный вектор по ОБИВКЕ ПО ЧАСОВОЙ:
+  // для (vx, vy) → (tx, ty) = (vy, -vx)
+  let tx = vy;
+  let ty = -vx;
 
-  // нормализуем на всякий случай
   const tlen = Math.sqrt(tx * tx + ty * ty) || 1;
   tx /= tlen;
   ty /= tlen;
 
-  const chipSize   = dealerChipEl.offsetWidth || 22;
-  const chipRadius = chipSize / 2;
-
-  // половина размера сиденья в направлении тангенса:
+  // половина размера сиденья вдоль тангенса
   const halfAlongT =
     Math.abs(tx) * (seatRect.width  / 2) +
     Math.abs(ty) * (seatRect.height / 2);
 
   const marginBetween = 6;   // зазор между сиденьем и фишкой
-  const outwardMargin = 2;   // чуть наружу к бортику, НЕ к центру
+  const outwardMargin = 2;   // чуть ближе к бортику стола
 
   const distAlongT = halfAlongT + chipRadius + marginBetween;
 
