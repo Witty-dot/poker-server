@@ -503,44 +503,16 @@
     =============================== */
 
     .dealer-chip {
-      position: absolute;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      display: none;
-
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      font-size: 11px;
-      font-weight: 600;
-      color: rgba(225,225,255,0.9);
-      text-shadow: 0 0 4px rgba(120, 110, 255, 0.8);
-
-      background: radial-gradient(circle at 50% 50%,
-      #0d0e18 0%,      /* глубокий тёмный графит */
-      #0b0c15 70%,
-      #050509 100%
-    );
-
-      border: 1px solid rgba(120,130,255,0.4);
-
+      position:absolute;
+      border-radius:50%;
+      background:radial-gradient(circle at 40% 40%, #1f1b33, #0b0a11 85%);
+      border:1px solid rgba(255,255,255,0.25);
       box-shadow:
-      0 0 6px rgba(120,115,255,0.7),
-      0 0 14px rgba(120,110,255,0.28),
-      inset 0 0 4px rgba(255,255,255,0.06);
-
-      pointer-events: none;
-      z-index: 20;
-    }
-
-    .dealer-chip::after {
-      content: "";
-      position: absolute;
-      inset: 28%;
-      border-radius: 50%;
-      border: 1px solid rgba(150,150,255,0.2);
+      0 0 6px rgba(158,134,255,0.6),
+      0 0 12px rgba(158,134,255,0.22),
+      0 0 20px rgba(158,134,255,0.15);
+      pointer-events:none;
+      z-index:5;
     }
 
     /* ---------- HERO / ACTIONS ---------- */
