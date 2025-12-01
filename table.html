@@ -502,17 +502,21 @@
     Dealer Chip — Neon Midnight Black
     =============================== */
 
-    .dealer-chip {
-      position:absolute;
-      border-radius:50%;
-      background:radial-gradient(circle at 40% 40%, #1f1b33, #0b0a11 85%);
-      border:1px solid rgba(255,255,255,0.25);
+    #dealerChip {
+      position: absolute;
+      border-radius: 50%;
+      background: radial-gradient(
+      circle,
+      rgba(74, 108, 255, 0.65) 0%,      /* насыщенный сапфир в центре */
+      rgba(74, 108, 255, 0.40) 30%,      /* мягкое свечение */
+      rgba(74, 108, 255, 0.12) 55%,      /* рассеяние */
+      rgba(74, 108, 255, 0.02) 90%       /* лёгкий хвост */
+    );
       box-shadow:
-      0 0 6px rgba(158,134,255,0.6),
-      0 0 12px rgba(158,134,255,0.22),
-      0 0 20px rgba(158,134,255,0.15);
-      pointer-events:none;
-      z-index:5;
+      0 0 10px rgba(90,110,255,0.55),
+      0 0 16px rgba(90,110,255,0.35),
+      0 0 28px rgba(90,110,255,0.20);
+      pointer-events: none;
     }
 
     /* ---------- HERO / ACTIONS ---------- */
