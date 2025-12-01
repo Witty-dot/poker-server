@@ -498,10 +498,14 @@
       color:#e5e7ff;
     }
 
+    /* ===============================
+    Dealer Chip — Neon Midnight Black
+    =============================== */
+
     .dealer-chip {
       position: absolute;
-      width: 22px;
-      height: 22px;
+      width: 20px;
+      height: 20px;
       border-radius: 50%;
       display: none;
 
@@ -509,24 +513,23 @@
       align-items: center;
       justify-content: center;
 
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
-      color: #111; /* мягкий контраст, а не черный по белому */
-      text-shadow: 0 0 2px rgba(0,0,0,0.4);
+      color: rgba(225,225,255,0.9);
+      text-shadow: 0 0 4px rgba(120, 110, 255, 0.8);
 
-      background: radial-gradient(circle at 35% 35%,
-      #cfc6a2 0%,      /* мягкое золото */
-      #9e9168 40%,     /* матовое золото */
-      #4b4335 85%      /* темная бронза */
+      background: radial-gradient(circle at 50% 50%,
+      #0d0e18 0%,      /* глубокий тёмный графит */
+      #0b0c15 70%,
+      #050509 100%
     );
 
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(120,130,255,0.4);
 
-      /* стильно: темный мягкий свет, фиолетово-синий неон */
       box-shadow:
-      0 0 4px rgba(0,0,0,0.8),
-      0 0 12px rgba(120,90,255,0.25),
-      inset 0 0 3px rgba(255,255,255,0.15);
+      0 0 6px rgba(120,115,255,0.7),
+      0 0 14px rgba(120,110,255,0.28),
+      inset 0 0 4px rgba(255,255,255,0.06);
 
       pointer-events: none;
       z-index: 20;
@@ -535,9 +538,9 @@
     .dealer-chip::after {
       content: "";
       position: absolute;
-      inset: 22%;
+      inset: 28%;
       border-radius: 50%;
-      border: 1px solid rgba(255,255,255,0.15);
+      border: 1px solid rgba(150,150,255,0.2);
     }
 
     /* ---------- HERO / ACTIONS ---------- */
