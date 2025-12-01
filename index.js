@@ -1408,10 +1408,16 @@ function createTableEngine(io, config) {
     setPlaying(socketId, playing) {
       const player = table.players.find(p => p.id === socketId);
       if (!player) return;
+
       player.isPaused = !playing;
       console.log(logPrefix(), `Player ${player.name} setPlaying=${playing}`);
       pushSnapshot('setPlaying', table);
       broadcastGameState();
+
+      // Если игрок "включился", возможно, теперь за столом >= 2 живых и можно стартануть раздачу
+      if (playing) {
+        autoStartIfReady('setPlaying');
+      }
     },
 
     startHand() {
