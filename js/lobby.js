@@ -346,19 +346,48 @@ function renderLobby() {
 //  Открытие стола
 // ========================================
 
-function openTable(table) {
-  const params = new URLSearchParams();
+async function openTable(table) {
+  // Виртуальный слот → сначала создаём стол на сервере
+  if (table.isVirtual) {
+    try {
+      const res = await fetch('/api/create-table', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limitId: table.limitId })
+      });
 
-  if (table.limitId) {
-    params.set('limitId', table.limitId);
+      if (!res.ok) {
+        console.error('[lobby] /api/create-table failed', res.status);
+        sound.play(SOUND_EVENTS.UI_ERROR_SOFT);
+        alert('Не удалось создать стол. Попробуйте ещё раз.');
+        return;
+      }
+
+      const data = await res.json();
+      if (!data.tableId) {
+        sound.play(SOUND_EVENTS.UI_ERROR_SOFT);
+        alert('Сервер не вернул идентификатор стола.');
+        return;
+      }
+
+      const url = `/table.html?tableId=${encodeURIComponent(data.tableId)}`;
+      window.location.href = url;
+      return;
+    } catch (e) {
+      console.error('[lobby] openTable virtual error', e);
+      sound.play(SOUND_EVENTS.UI_ERROR_SOFT);
+      alert('Ошибка при создании стола.');
+      return;
+    }
   }
 
-  if (table.isVirtual) {
-    // ЯВНОЙ командой говорим серверу: создай НОВЫЙ стол этого лимита
-    params.set('create', '1');
-  } else if (table.id) {
-    // Для уже существующего стола передаем его tableId
+  // Обычный стол → переходим по tableId, чтобы гарантированно сесть именно за него
+  const params = new URLSearchParams();
+  if (table.id) {
     params.set('tableId', table.id);
+  } else if (table.limitId) {
+    // запасной вариант: только по лимиту
+    params.set('limitId', table.limitId);
   }
 
   const url = `/table.html?${params.toString()}`;
