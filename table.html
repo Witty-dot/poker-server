@@ -523,6 +523,7 @@
     }
 
     /* Тёмное фасетированное "дно" сапфира */
+    /* Тёмное гранёное "дно" сапфира */
     #dealerChip::before {
       content: "";
       position: absolute;
@@ -531,42 +532,102 @@
       transform: translate(-50%, -50%);
       border-radius: 50%;
 
-    /* чуть крупнее линзы, ~26–28% от фишки */
-      width: 28%;
-      height: 28%;
+    /* дно ~24–25% от фишки */
+      width: 25%;
+      height: 25%;
 
+    /* резкие тёмные грани */
       background:
-    /* общий тёмный тон */
+    /* лёгкое затемнение краёв, чтобы был "колодец" */
       radial-gradient(circle at 50% 50%,
-      rgba(30, 40, 90, 0.2) 0%,
-      rgba(8, 10, 30, 0.95) 75%,
-      #020308 100%),
-    /* острые грани */
-     conic-gradient(
-      from 12deg,
-      #6f8dff 0deg 18deg,
-      #070a1c 18deg 35deg,
-      #8ca3ff 35deg 50deg,
-      #050716 50deg 70deg,
-      #7b96ff 70deg 88deg,
-      #050716 88deg 110deg,
-      #94a8ff 110deg 128deg,
-      #050716 128deg 150deg,
-      #8097ff 150deg 168deg,
-      #050716 168deg 190deg,
-      #92a6ff 190deg 210deg,
-      #050716 210deg 235deg,
-      #7a95ff 235deg 255deg,
-      #050716 255deg 280deg,
-      #8fa4ff 280deg 300deg,
-      #050716 300deg 325deg,
-      #6f8dff 325deg 360deg
+      rgba(0, 0, 0, 0.0) 0%,
+      rgba(0, 0, 0, 0.0) 35%,
+      rgba(0, 0, 0, 0.75) 85%,
+      rgba(0, 0, 0, 1) 100%
+    ),
+    /* сами фасеты — максимум контраста */
+      conic-gradient(
+      from 10deg,
+      #7fa4ff 0deg   20deg,
+      #040614 20deg  40deg,
+      #9ab6ff 40deg  60deg,
+      #050716 60deg  80deg,
+      #88a8ff 80deg  100deg,
+      #050716 100deg 120deg,
+      #8eaeff 120deg 140deg,
+      #050716 140deg 160deg,
+      #7fa4ff 160deg 180deg,
+      #050716 180deg 200deg,
+      #9ab6ff 200deg 220deg,
+      #050716 220deg 240deg,
+      #88a8ff 240deg 260deg,
+      #050716 260deg 280deg,
+      #8eaeff 280deg 300deg,
+      #050716 300deg 320deg,
+      #7fa4ff 320deg 340deg,
+      #050716 340deg 360deg
     );
 
-    /* сильная внутренняя тень для глубины */
       box-shadow:
-      inset 0 0 8px rgba(0,0,0,0.9),
-      inset 0 0 3px rgba(0,0,0,0.7);
+      inset 0 0 8px rgba(0, 0, 0, 0.95),  /* сильная внутренняя тень */
+      inset 0 0 3px rgba(0, 0, 0, 0.7);
+    }
+
+    /* Верхняя стеклянная линза */
+    #dealerChip::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+    /* Тёмное гранёное "дно" сапфира */    #dealerChip::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+
+    /* дно ~24–25% от фишки */
+      width: 25%;
+      height: 25%;
+
+    /* резкие тёмные грани */
+      background:
+    /* лёгкое затемнение краёв, чтобы был "колодец" */
+      radial-gradient(circle at 50% 50%,
+      rgba(0, 0, 0, 0.0) 0%,
+      rgba(0, 0, 0, 0.0) 35%,
+      rgba(0, 0, 0, 0.75) 85%,
+      rgba(0, 0, 0, 1) 100%
+    ),
+    /* сами фасеты — максимум контраста */
+      conic-gradient(
+      from 10deg,
+      #7fa4ff 0deg   20deg,
+      #040614 20deg  40deg,
+      #9ab6ff 40deg  60deg,
+      #050716 60deg  80deg,
+      #88a8ff 80deg  100deg,
+      #050716 100deg 120deg,
+      #8eaeff 120deg 140deg,
+      #050716 140deg 160deg,
+      #7fa4ff 160deg 180deg,
+      #050716 180deg 200deg,
+      #9ab6ff 200deg 220deg,
+      #050716 220deg 240deg,
+      #88a8ff 240deg 260deg,
+      #050716 260deg 280deg,
+      #8eaeff 280deg 300deg,
+      #050716 300deg 320deg,
+      #7fa4ff 320deg 340deg,
+      #050716 340deg 360deg
+    );
+
+      box-shadow:
+      inset 0 0 8px rgba(0, 0, 0, 0.95),  /* сильная внутренняя тень */
+      inset 0 0 3px rgba(0, 0, 0, 0.7);
     }
 
     /* Верхняя стеклянная линза */
@@ -578,21 +639,49 @@
       transform: translate(-50%, -50%);
       border-radius: 50%;
 
-    /* линза чуть меньше дна, ~22–23% */
-      width: 22%;
-      height: 22%;
+    /* линза чуть меньше дна, чтобы фасеты читались по краю */
+      width: 18%;
+      height: 18%;
 
       background:
+    /* маленький блик сверху-слева */
       radial-gradient(circle at 35% 30%,
-      rgba(210, 230, 255, 0.95) 0%,
-      rgba(140, 180, 255, 0.8) 22%,
-      rgba(80, 120, 230, 0.65) 40%,
-      rgba(40, 60, 130, 0.25) 60%,
-      rgba(10, 15, 40, 0) 100%);
+      rgba(230, 240, 255, 0.95) 0%,
+      rgba(180, 210, 255, 0.6) 25%,
+      rgba(0, 0, 0, 0) 55%
+    ),
+    /* общий синий объём */
+      radial-gradient(circle at 50% 60%,
+      rgba(90, 140, 255, 0.9) 0%,
+      rgba(60, 100, 230, 0.7) 45%,
+      rgba(20, 30, 80, 0.05) 100%
+    );
 
       box-shadow:
-      inset 0 0 4px rgba(255,255,255,0.55),
-      0 0 6px rgba(80,110,230,0.65);
+      inset 0 0 4px rgba(255,255,255,0.5),
+      0 0 6px rgba(60, 100, 230, 0.7);
+    }
+    /* линза чуть меньше дна, чтобы фасеты читались по краю */
+      width: 18%;
+      height: 18%;
+
+      background:
+    /* маленький блик сверху-слева */
+      radial-gradient(circle at 35% 30%,
+      rgba(230, 240, 255, 0.95) 0%,
+      rgba(180, 210, 255, 0.6) 25%,
+      rgba(0, 0, 0, 0) 55%
+    ),
+    /* общий синий объём */
+      radial-gradient(circle at 50% 60%,
+      rgba(90, 140, 255, 0.9) 0%,
+      rgba(60, 100, 230, 0.7) 45%,
+      rgba(20, 30, 80, 0.05) 100%
+    );
+
+      box-shadow:
+      inset 0 0 4px rgba(255,255,255,0.5),
+      0 0 6px rgba(60, 100, 230, 0.7);
     }
     /* ---------- HERO / ACTIONS ---------- */
 
