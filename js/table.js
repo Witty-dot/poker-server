@@ -257,8 +257,8 @@ function positionDealerChip(state) {
   vy /= len;
 
   // Тангенциальный вектор по обивке по часовой:
-  let tx = vy;
-  let ty = -vx;
+  let tx = -vy;
+  let ty = vx;
 
   const tlen = Math.sqrt(tx * tx + ty * ty) || 1;
   tx /= tlen;
