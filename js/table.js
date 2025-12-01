@@ -282,6 +282,45 @@ function positionDealerChip(state) {
 }
 
 // =====================================================================
+// ===============   SEATS RENDER   ====================================
+// =====================================================================
+
+function renderSeats(state) {
+  const players = state.players || [];
+
+  seatEls.forEach((seatEl, idx) => {
+    const slotPlayer = players[idx];
+    const nameEl  = seatEl.querySelector('.seat-name');
+    const stackEl = seatEl.querySelector('.seat-stack');
+
+    if (!slotPlayer) {
+      seatEl.classList.add('seat--empty');
+      seatEl.classList.remove('active');
+      if (nameEl)  nameEl.textContent  = 'Свободно';
+      if (stackEl) stackEl.textContent = '';
+      return;
+    }
+
+    seatEl.classList.remove('seat--empty');
+    if (nameEl)  nameEl.textContent  = slotPlayer.name || ('Игрок ' + (idx + 1));
+    if (stackEl) stackEl.textContent = formatNumber(slotPlayer.stack || 0);
+
+    if (slotPlayer.id === state.currentTurn) {
+      seatEl.classList.add('active');
+    } else {
+      seatEl.classList.remove('active');
+    }
+  });
+
+  // позиционируем фишку дилера после того, как места отрисованы
+  if (state.buttonPlayerId) {
+    positionDealerChip(state);
+  } else if (dealerChipEl) {
+    dealerChipEl.style.display = 'none';
+  }
+}
+
+// =====================================================================
 // ===============   BOARD & POT RENDER   ==============================
 // =====================================================================
 
