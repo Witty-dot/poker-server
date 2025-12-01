@@ -951,15 +951,35 @@ function createTableEngine(io, config) {
       p.totalBet = 0;
     });
 
-    console.log(logPrefix(), 'Showdown pots:', potSummaries.join(' | '), 'totalPot:', totalPot);
+    console.log(
+     logPrefix(),
+     'Showdown pots:',
+     potSummaries.join(' | '),
+     'totalPot:',
+     totalPot
+    );
 
     table.mainPot = 0;
     table.streetPot = 0;
     table.lastLogMessage = pots.length > 0
-      ? `Шоудаун. ${potSummaries.join(' | ')}. Общий банк: ${totalPot}`
-      : `Шоудаун. Общий банк: ${totalPot}`;
+    ? `Шоудаун. ${potSummaries.join(' | ')}. Общий банк: ${totalPot}`
+    : `Шоудаун. Общий банк: ${totalPot}`;
 
-    table.potDetails = detailLines;
+    // ===== КОРОТКИЙ ТЕКСТ ТОЛЬКО ДЛЯ СТОЛА (sidePots) =====
+    const sidePotLines = [];
+
+    if (pots.length > 0) {
+      pots.forEach((pot, i) => {
+      sidePotLines.push(`Пот ${i + 1}: ${pot.amount} фишек`);
+    });
+    } else if (totalPot > 0) {
+        sidePotLines.push(`Общий банк: ${totalPot} фишек`);
+    }
+
+    // Это пойдёт в sidePots под картами
+    table.potDetails = sidePotLines;
+
+    // А здесь оставляем весь разжёванный текст
     table.dealerDetails = detailLines.join('\n');
 
     if (Object.keys(perPlayerWin).length > 0) playSound('win');
