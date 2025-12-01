@@ -183,12 +183,10 @@ function renderHeader(state) {
   const bb = state.bigBlind || 0;
 
   if (tableTitleEl) {
-    // TABLE · NL 10/20
     tableTitleEl.textContent = `TABLE · NL ${sb}/${bb}`;
   }
 
   if (tableNameEl) {
-    // либо имя стола с сервера, либо запасное
     const tableLabel =
       state.tableName ||
       (state.tableId ? `Стол #${state.tableId}` : 'Стол Midnight Black');
@@ -258,22 +256,20 @@ function positionDealerChip(state) {
   vx /= len;
   vy /= len;
 
-  // Тангенциальный вектор по ОБИВКЕ ПО ЧАСОВОЙ:
-  // для (vx, vy) → (tx, ty) = (vy, -vx)
-  let tx = -vy;
-  let ty = vx;
+  // Тангенциальный вектор по обивке по часовой:
+  let tx = vy;
+  let ty = -vx;
 
   const tlen = Math.sqrt(tx * tx + ty * ty) || 1;
   tx /= tlen;
   ty /= tlen;
 
-  // половина размера сиденья вдоль тангенса
   const halfAlongT =
     Math.abs(tx) * (seatRect.width  / 2) +
     Math.abs(ty) * (seatRect.height / 2);
 
-  const marginBetween = 6;   // зазор между сиденьем и фишкой
-  const outwardMargin = 2;   // чуть ближе к бортику стола
+  const marginBetween = 6;
+  const outwardMargin = 2;
 
   const distAlongT = halfAlongT + chipRadius + marginBetween;
 
@@ -284,10 +280,6 @@ function positionDealerChip(state) {
   dealerChipEl.style.top  = (chipCenterY - tableRect.top  - chipRadius) + 'px';
   dealerChipEl.style.display = 'block';
 }
-
-// =====================================================================
-// ===============   SEATS RENDER   ====================================
-// =====================================================================
 
 function renderSeats(state) {
   const players = state.players || [];
@@ -316,7 +308,6 @@ function renderSeats(state) {
     }
   });
 
-  // позиционируем фишку дилера после того, как места отрисованы
   if (state.buttonPlayerId) {
     positionDealerChip(state);
   } else if (dealerChipEl) {
@@ -508,10 +499,6 @@ function renderHero(state, comboKeys, prevState) {
           heroLastActionEl.textContent = `${hintText} · ${sec} с`;
         }
 
-        // можно позже включить тик/urgent:
-        // if (sec === 10) sound.play(SOUND_EVENTS.TIMER_TICK);
-        // if (sec === 5)  sound.play(SOUND_EVENTS.TIMER_URGENT);
-
         if (sec <= 0) clearTurnTimer();
       };
       upd();
@@ -655,23 +642,26 @@ socket.on('sound', (payload) => {
 // =====================================================================
 
 function wireActionButtons() {
+  // FOLD — свой звук
   if (foldButton) {
     foldButton.addEventListener('click', () => {
-      sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
+      sound.play(SOUND_EVENTS.FOLD);
       socket.emit('action', { type: 'fold' });
     });
   }
 
+  // CHECK / CALL — мягкий отдельный звук
   if (checkCallButton) {
     checkCallButton.addEventListener('click', () => {
-      sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
+      sound.play(SOUND_EVENTS.CALL);   // можно заменить на CHECK, если больше нравится
       socket.emit('action', { type: 'call' });
     });
   }
 
+  // BET / RAISE — звук ставки
   if (betRaiseButton) {
     betRaiseButton.addEventListener('click', () => {
-      sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
+      sound.play(SOUND_EVENTS.BET);
       let amount = 0;
       if (betAmountEl) {
         const raw = parseInt(betAmountEl.value, 10);
@@ -683,13 +673,15 @@ function wireActionButtons() {
     });
   }
 
+  // ALL-IN — отдельный напряжённый звук
   if (allInButton) {
     allInButton.addEventListener('click', () => {
-      sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
+      sound.play(SOUND_EVENTS.ALLIN);
       socket.emit('action', { type: 'allin' });
     });
   }
 
+  // Слайдер ставки — без звука, чтобы не бесил при перетаскивании
   if (betRangeEl && betAmountEl) {
     betRangeEl.addEventListener('input', () => {
       const percent = parseInt(betRangeEl.value, 10) || 0;
@@ -724,11 +716,13 @@ function wireActionButtons() {
     });
   }
 
+  // Пресеты ставки — другой UI-клик
   if (presetButtons.length && betAmountEl) {
     presetButtons.forEach(btn => {
       btn.addEventListener('click', () => {
         if (!lastState) return;
-        sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
+
+        sound.play(SOUND_EVENTS.UI_CLICK_SECONDARY);
 
         const preset = btn.getAttribute('data-bet-preset');
 
@@ -740,6 +734,8 @@ function wireActionButtons() {
         let amount = 0;
 
         if (preset === 'max') {
+          // максимум = жёсткий ALL-IN
+          sound.play(SOUND_EVENTS.ALLIN);
           socket.emit('action', { type: 'allin' });
           return;
         }
@@ -797,6 +793,7 @@ function wireSeatButton() {
   if (!seatButton) return;
 
   seatButton.addEventListener('click', () => {
+    // для посадки/ухода оставляем UI-клик
     sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
 
     if (!lastState) {
@@ -839,12 +836,12 @@ function wireChat() {
   };
 
   chatSendEl.addEventListener('click', () => {
-    sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
+    sound.play(SOUND_EVENTS.UI_CLICK_SECONDARY);
     send();
   });
   chatInputEl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
-      sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
+      sound.play(SOUND_EVENTS.UI_CLICK_SECONDARY);
       send();
     }
   });
