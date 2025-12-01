@@ -425,6 +425,20 @@ function createTableEngine(io, config) {
     return res;
   }
 
+  function autoStartIfReady(trigger) {
+  const activeSeats = getActiveSeatIndices();
+
+  if (
+    table.stage === 'waiting' &&   // Нет текущей раздачи
+    activeSeats.length >= 2        // Минимум два активных игрока
+   ){
+    console.log(logPrefix(), 'Auto-start hand:', trigger);
+    startHand();                   // Уже существующая функция
+    pushSnapshot('auto start hand: ' + trigger, table);
+    broadcastGameState();
+    }
+  }
+  
   function resetHandState() {
     table.deck = [];
     table.communityCards = [];
