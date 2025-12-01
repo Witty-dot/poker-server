@@ -173,32 +173,55 @@ function formatNumber(n) {
 // ===============   HEADER RENDER   ===================================
 // =====================================================================
 
-function renderHeader(state) {
-  if (!state) return;
-  const sb = state.smallBlind || 10;
-  const bb = state.bigBlind || 20;
+function positionDealerChip(state) {
+  if (!dealerChipEl || !tableEl) return;
 
-  if (tableTitleEl) {
-    tableTitleEl.textContent = `TABLE · NL ${sb}-${bb}`;
+  const players = state.players || [];
+  const btnIdx = players.findIndex(p => p.id === state.buttonPlayerId);
+
+  if (btnIdx < 0 || btnIdx >= seatEls.length) {
+    dealerChipEl.style.display = 'none';
+    return;
   }
 
-  if (tableNameEl) {
-    tableNameEl.textContent = tableIdFromUrl ? `Стол ${tableIdFromUrl}` : 'Стол Midnight Black';
+  const seatEl = seatEls[btnIdx];
+  if (!seatEl) {
+    dealerChipEl.style.display = 'none';
+    return;
   }
 
-  if (tablePlayersEl) {
-    const players = state.players || [];
-    const activeCount = players.filter(p => !p.isPaused && p.stack > 0).length;
-    const maxSeats = seatEls.length || 6;
-    tablePlayersEl.textContent = `${activeCount} / ${maxSeats} игроков`;
-  }
+  const seatRect  = seatEl.getBoundingClientRect();
+  const tableRect = tableEl.getBoundingClientRect();
 
-  if (minBuyinEl || maxBuyinEl) {
-    const minBuyin = bb * 50;
-    const maxBuyin = bb * 200;
-    if (minBuyinEl) minBuyinEl.textContent = `Мин. бай-ин: ${formatNumber(minBuyin)}`;
-    if (maxBuyinEl) maxBuyinEl.textContent = `Макс. бай-ин: ${formatNumber(maxBuyin)}`;
-  }
+  const tableCx = tableRect.left + tableRect.width  / 2;
+  const tableCy = tableRect.top  + tableRect.height / 2;
+  const seatCx  = seatRect.left + seatRect.width   / 2;
+  const seatCy  = seatRect.top  + seatRect.height  / 2;
+
+  // Направление от центра стола к сиденью (наружу)
+  let vx = seatCx - tableCx;
+  let vy = seatCy - tableCy;
+  const len = Math.sqrt(vx*vx + vy*vy) || 1;
+  vx /= len;
+  vy /= len;
+
+  const chipSize   = dealerChipEl.offsetWidth || 18;
+  const chipRadius = chipSize / 2;
+
+  // Отступ: сначала до края сиденья, затем чуть наружу, чтобы не соприкасаться
+  const seatHalfWidth  = seatRect.width  / 2;
+  const seatHalfHeight = seatRect.height / 2;
+  const seatRadiusAlongDir = Math.max(seatHalfWidth, seatHalfHeight);
+
+  const margin = 6; // расстояние между сиденьем и чипом
+  const chipDistance = chipRadius + margin;
+
+  const chipCenterX = seatCx + vx * (seatRadiusAlongDir + chipDistance);
+  const chipCenterY = seatCy + vy * (seatRadiusAlongDir + chipDistance);
+
+  dealerChipEl.style.left = (chipCenterX - tableRect.left - chipRadius) + 'px';
+  dealerChipEl.style.top  = (chipCenterY - tableRect.top  - chipRadius) + 'px';
+  dealerChipEl.style.display = 'block';
 }
 
 // =====================================================================
@@ -216,7 +239,7 @@ function positionDealerChip(state) {
     return;
   }
 
-  const seatEl   = seatEls[btnIdx];
+  const seatEl = seatEls[btnIdx];
   if (!seatEl) {
     dealerChipEl.style.display = 'none';
     return;
@@ -227,9 +250,10 @@ function positionDealerChip(state) {
 
   const tableCx = tableRect.left + tableRect.width  / 2;
   const tableCy = tableRect.top  + tableRect.height / 2;
-  const seatCx  = seatRect.left  + seatRect.width   / 2;
-  const seatCy  = seatRect.top   + seatRect.height  / 2;
+  const seatCx  = seatRect.left + seatRect.width   / 2;
+  const seatCy  = seatRect.top  + seatRect.height  / 2;
 
+  // Направление от центра стола к сиденью (наружу)
   let vx = seatCx - tableCx;
   let vy = seatCy - tableCy;
   const len = Math.sqrt(vx*vx + vy*vy) || 1;
@@ -238,13 +262,20 @@ function positionDealerChip(state) {
 
   const chipSize   = dealerChipEl.offsetWidth || 18;
   const chipRadius = chipSize / 2;
-  const offsetFromSeat = 32;
 
-  const chipCenterX = seatCx - vx * offsetFromSeat;
-  const chipCenterY = seatCy - vy * offsetFromSeat;
+  // Отступ: сначала до края сиденья, затем чуть наружу, чтобы не соприкасаться
+  const seatHalfWidth  = seatRect.width  / 2;
+  const seatHalfHeight = seatRect.height / 2;
+  const seatRadiusAlongDir = Math.max(seatHalfWidth, seatHalfHeight);
 
-  dealerChipEl.style.left   = (chipCenterX - tableRect.left - chipRadius) + 'px';
-  dealerChipEl.style.top    = (chipCenterY - tableRect.top  - chipRadius) + 'px';
+  const margin = 6; // расстояние между сиденьем и чипом
+  const chipDistance = chipRadius + margin;
+
+  const chipCenterX = seatCx + vx * (seatRadiusAlongDir + chipDistance);
+  const chipCenterY = seatCy + vy * (seatRadiusAlongDir + chipDistance);
+
+  dealerChipEl.style.left = (chipCenterX - tableRect.left - chipRadius) + 'px';
+  dealerChipEl.style.top  = (chipCenterY - tableRect.top  - chipRadius) + 'px';
   dealerChipEl.style.display = 'block';
 }
 
@@ -259,7 +290,7 @@ function renderSeats(state) {
     if (!slotPlayer) {
       seatEl.classList.add('seat--empty');
       seatEl.classList.remove('active');
-      if (nameEl)  nameEl.textContent  = 'Пусто';
+      if (nameEl)  nameEl.textContent  = 'Свободно';
       if (stackEl) stackEl.textContent = '';
       return;
     }
