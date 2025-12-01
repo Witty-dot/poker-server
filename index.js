@@ -1375,6 +1375,15 @@ function createTableEngine(io, config) {
       console.log(logPrefix(), `Player joined: ${name}`);
       pushSnapshot('player joined', table);
       broadcastGameState();
+
+      // Проверяем, не пора ли запускать раздачу
+      autoStartIfReady('player joined');
+   },
+
+      table.players.push(player);
+      console.log(logPrefix(), `Player joined: ${name}`);
+      pushSnapshot('player joined', table);
+      broadcastGameState();
     },
 
     removePlayer(socketId) {
