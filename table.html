@@ -500,25 +500,30 @@
 
     .dealer-chip {
       position:absolute;
+      /* Базовый размер — дальше мы ещё подкорректируем в JS */
       width:22px;
       height:22px;
       border-radius:50%;
       display:none;
+
       display:flex;
       align-items:center;
       justify-content:center;
+
       font-size:11px;
-      font-weight:700;
-      color:#222;
+      font-weight:600;
+      letter-spacing:0.03em;
+      color:#080910;
       pointer-events:none;
       z-index:10;
 
-      background: radial-gradient(circle at 30% 20%, #ffffff 0, #f3f3f3 35%, #d2b46c 36%, #8b6b2b 100%);
-      border: 1px solid rgba(255, 255, 255, 0.9);
+     /* Более «Midnight Black» стиль: мягкое золото + лёгкая неоновая аура */
+      background:
+      radial-gradient(circle at 30% 20%, #ffffff 0, #f7f7fb 35%, #d8c46a 42%, #3a2a15 100%);
+      border:1px solid rgba(255,255,255,0.9);
       box-shadow:
-      0 0 6px rgba(0, 0, 0, 0.8),
-      0 0 16px rgba(210, 180, 108, 0.8);
-      text-shadow:0 0 1px rgba(255,255,255,0.7);
+      0 0 3px rgba(0,0,0,0.8),
+      0 0 14px rgba(255,215,0,0.55);
     }
 
     .dealer-chip::after {
@@ -526,8 +531,8 @@
       position:absolute;
       inset:20%;
       border-radius:50%;
-      border:1px solid rgba(255,255,255,0.5);
-      box-shadow:inset 0 0 4px rgba(0,0,0,0.4);
+      border:1px solid rgba(255,255,255,0.6);
+      box-shadow:inset 0 0 4px rgba(0,0,0,0.45);
     }
 
     /* ---------- HERO / ACTIONS ---------- */
