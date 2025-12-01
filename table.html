@@ -502,15 +502,15 @@
     Dealer Chip — Neon Midnight Black
     =============================== */
 
-    #dealerChip {
+    /*#dealerChip {
       position: absolute;
       border-radius: 50%;
       pointer-events: none;
 
       /* Размер подгоняется из JS, но фон — здесь */
-      background:
+      /*background:
       /* Facet Sapphire (в центре, 25% диаметра) */
-      radial-gradient(circle at 50% 50%,
+      /*radial-gradient(circle at 50% 50%,
       rgba(70,110,255,1) 0%,
       rgba(60,95,240,1) 22%,
       rgba(55,90,230,0.95) 25%,
@@ -518,7 +518,7 @@
     ),
 
       /* Схема граней — имитация огранки */
-      conic-gradient(
+      /*conic-gradient(
       from 10deg,
       rgba(110,150,255,0.35) 0deg,
       rgba(30,40,80,0.0) 40deg,
@@ -531,21 +531,78 @@
     ),
 
       /* Тёмная Midnight Black база */
-      radial-gradient(circle,
+      /*radial-gradient(circle,
       #0e0e18 0%,
       #050509 70%,
       #000000 100%
     );
 
       /* Сдержанный ореол вокруг всей фишки */
-      box-shadow:
+      /*box-shadow:
       0 0 4px rgba(70,110,255,0.35),
       0 0 9px rgba(70,110,255,0.25);
 
       /* Чёткая граница фишки → премиум эффект */
-      border: 1px solid rgba(140,150,255,0.25);
+      /*border: 1px solid rgba(140,150,255,0.25);
+    }*/
+
+    #dealerChip {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+
+      /* — Midnight Black discus — */
+      background:
+      radial-gradient(circle at 50% 50%,
+      #0a0a12 0%,
+      #05050a 70%,
+      #000000 100%
+    );
+
+      /* лёгкий ободок */
+      box-shadow:
+      0 0 4px rgba(60, 90, 200, 0.25);
+
+      border: 1px solid rgba(120,130,200,0.18);
+
+      overflow: visible;
     }
 
+    /* Слой гранёного сапфира */
+    #dealerChip::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+
+    /* Размер = 25% от чипа */
+      width: 25%;
+      height: 25%;
+
+    /* Чёткие грани */
+      background:
+      conic-gradient(
+      from 0deg,
+      #345dff 0deg,
+      #1d2f6e 40deg,
+      #345dff 80deg,
+      #1d2f6e 120deg,
+      #345dff 160deg,
+      #1d2f6e 200deg,
+      #345dff 240deg,
+      #1d2f6e 280deg,
+      #345dff 320deg,
+      #345dff 360deg
+    );
+
+    /* внутреннее насыщенное ядро */
+      box-shadow:
+      inset 0 0 6px rgba(80,120,255,0.8),
+      0 0 6px rgba(80,120,255,0.35);
+    }
+    
     /* ---------- HERO / ACTIONS ---------- */
 
     .bottom-panel {
