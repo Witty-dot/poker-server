@@ -575,57 +575,53 @@
       top: 50%;
       transform: translate(-50%, -50%);
       border-radius: 50%;
-      width: 26%;
-      height: 26%;
+      width: 24%;
+      height: 24%;
 
-    /* — Фасетный Royal Sapphire — */
+    /* — ФАСЕТНЫЙ САПФИР (версия поближе к прошлой) — */
       background:
-    /* ВСПЫШКА-ЛИНЗА */
-      radial-gradient(circle at 40% 30%,
-      rgba(235,245,255,0.95) 0%,
-      rgba(235,245,255,0.0) 35%
+    /* верхний мягкий блик */
+      radial-gradient(circle at 32% 25%,
+      rgba(240,245,255,0.9) 0%,
+      rgba(240,245,255,0.0) 34%
     ),
 
-    /* ГЛУБИНА САПФИРА */
+    /* глубина камня */
       radial-gradient(circle at 60% 75%,
-      rgba(60,110,255,0.75) 0%,
-      rgba(20,30,90,1) 70%
+      rgba(55,95,230,0.85) 0%,
+      rgba(10,15,45,1) 70%
     ),
 
-    /* МНОГОГРАННЫЙ БЛЕСК (мелкие грани вместо крупных) */
+    /* фасеты — сегменты, как в прошлом варианте */
       conic-gradient(
-      from 10deg,
-      #0d112b 0deg   10deg,
-      #3452d4 10deg  22deg,
-      #0a0c1e 22deg  35deg,
-      #2a44be 35deg  48deg,
-      #080a18 48deg  62deg,
-      #273fc9 62deg  78deg,
-      #050714 78deg  95deg,
-      #2138b6 95deg  110deg,
-      #0c1027 110deg 126deg,
-      #3955df 126deg 142deg,
-      #070912 142deg 160deg,
-      #263fc9 160deg 175deg,
-      #06080f 175deg 192deg,
-      #2037b2 192deg 208deg,
-      #0b0f27 208deg 225deg,
-      #3250d7 225deg 242deg,
-      #080a14 242deg 260deg,
-      #273fca 260deg 275deg,
-      #05070e 275deg 292deg,
-      #233ac1 292deg 310deg,
-      #0a0d20 310deg 330deg,
-      #314bd2 330deg 360deg
+      from 8deg,
+      #314ad8 0deg   18deg,
+      #050711 18deg  32deg,
+      #3958ff 32deg  50deg,
+      #070914 50deg  68deg,
+      #2b46cf 68deg  88deg,
+      #060814 88deg  108deg,
+      #334fdd 108deg 130deg,
+      #050711 130deg 152deg,
+      #3048d4 152deg 174deg,
+      #050710 174deg 196deg,
+      #2b46cf 196deg 218deg,
+      #060813 218deg 240deg,
+      #334fdd 240deg 262deg,
+      #050711 262deg 284deg,
+      #3048d4 284deg 306deg,
+      #050710 306deg 328deg,
+      #2b46cf 328deg 350deg,
+      #060813 350deg 360deg
     );
 
-    /* Объёмная линза + сдержанный ореол */
+    /* линза + аккуратный ореол */
       box-shadow:
       inset 0 0 3px rgba(255,255,255,0.45),
-      inset 0 0 18px rgba(80,120,255,0.9),
-      0 0 6px rgba(90,130,255,0.40);
+      inset 0 0 14px rgba(80,120,255,0.85),
+      0 0 4px rgba(70,110,230,0.35);
 
-      border: 1px solid rgba(140,160,255,0.55);
+      border: 1px solid rgba(150,170,255,0.55);
     }
     /* ---------- HERO / ACTIONS ---------- */
 
