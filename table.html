@@ -569,6 +569,7 @@
     }
 
     /* Слой гранёного сапфира */
+    
     #dealerChip::after {
       content: "";
       position: absolute;
@@ -577,32 +578,40 @@
       transform: translate(-50%, -50%);
       border-radius: 50%;
 
-    /* Размер = 25% от чипа */
+    /* Размер 25% от фишки */
       width: 25%;
       height: 25%;
 
-    /* Чёткие грани */
+    /* Гранёный сапфир — сильные грани */
       background:
+      radial-gradient(circle at 50% 45%, 
+      rgba(120, 160, 255, 0.9) 0%, 
+      rgba(60, 90, 200, 0.7) 35%,
+      rgba(20, 25, 70, 0.9) 70%,
+      rgba(8, 10, 30, 1) 100%
+    ),
       conic-gradient(
-      from 0deg,
-      #345dff 0deg,
-      #1d2f6e 40deg,
-      #345dff 80deg,
-      #1d2f6e 120deg,
-      #345dff 160deg,
-      #1d2f6e 200deg,
-      #345dff 240deg,
-      #1d2f6e 280deg,
-      #345dff 320deg,
-      #345dff 360deg
+      from 20deg,
+      #3e63ff,
+      #1b2558,
+      #3e63ff,
+      #1b2558,
+      #3e63ff,
+      #1b2558,
+      #3e63ff,
+      #1b2558,
+      #3e63ff
     );
 
-    /* внутреннее насыщенное ядро */
+    /* Лёгкая объёмная линза */
       box-shadow:
-      inset 0 0 6px rgba(80,120,255,0.8),
-      0 0 6px rgba(80,120,255,0.35);
+      inset 0 0 3px rgba(255,255,255,0.35),
+      inset 0 0 12px rgba(90,130,255,0.7),
+      0 0 5px rgba(70,100,210,0.35);
+
+      /* Чёткая “оправа” камня */
+      border: 1px solid rgba(140,160,255,0.35);
     }
-    
     /* ---------- HERO / ACTIONS ---------- */
 
     .bottom-panel {
