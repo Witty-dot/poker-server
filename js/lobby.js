@@ -90,10 +90,10 @@ function buildTablesFromApi(apiData) {
       hasEmptyPlaceholder
     } = limit;
 
-    const currency = 'MBC';
-    const maxPlayers = 6;      // наш текущий максимум
-    const speed = 'normal';    // пока без реального параметра
-    const isVip = false;       // потом можно добавить по лимиту
+    const currency   = 'MBC';
+    const maxPlayers = 6;
+    const speed      = 'normal';
+    const isVip      = false;
 
     // Реальные столы
     (tables || []).forEach((t, idx) => {
@@ -111,7 +111,9 @@ function buildTablesFromApi(apiData) {
         speed,
         waitlist: 0,
         isVip,
-        isVirtual: false
+        isVirtual: false,
+        stage: t.stage || 'waiting',
+        status: t.status || 'playing'
       });
     });
 
@@ -132,7 +134,9 @@ function buildTablesFromApi(apiData) {
         speed,
         waitlist: 0,
         isVip,
-        isVirtual: true
+        isVirtual: true,
+        stage: 'waiting',
+        status: 'empty'
       });
     }
   });
