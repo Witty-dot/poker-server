@@ -1546,9 +1546,9 @@ function getEngineForSocket(socket) {
 
 app.get('/api/lobby', (req, res) => {
   const data = TABLE_LIMITS.map(limit => {
-    const same = Array.from(TABLES.values()).filter(t => t.limitId === limit.id);
+    const same    = Array.from(TABLES.values()).filter(t => t.limitId === limit.id);
     const playing = same.filter(t => t.getRawState().players.length > 0);
-    const empty = same.filter(t => t.getRawState().players.length === 0);
+    const empty   = same.filter(t => t.getRawState().players.length === 0);
 
     const canCreateMore = playing.length + empty.length < limit.maxTables;
 
@@ -1556,16 +1556,51 @@ app.get('/api/lobby', (req, res) => {
       limitId: limit.id,
       name: limit.name,
       smallBlind: limit.smallBlind,
-      bigBlind: limit.bigBlind,
-      tables: playing.map(t => ({
-        tableId: t.id,
-        players: t.getRawState().players.length
-      })),
+      bigBlind:  limit.bigBlind,
+      tables: playing.map(t => {
+        const raw = t.getRawState();
+        let status = 'playing';
+        if (raw.stage === 'waiting') {
+          status = raw.players.length > 0 ? 'waiting_players' : 'empty';
+        }
+        return {
+          tableId: t.id,
+          players: raw.players.length,
+          stage: raw.stage,
+          status
+        };
+      }),
       hasEmptyPlaceholder: canCreateMore || empty.length > 0
     };
   });
 
   res.json(data);
+});
+
+// ========== /api/create-table – создать новый стол нужного лимита ==========
+
+app.post('/api/create-table', (req, res) => {
+  const { limitId } = req.body || {};
+
+  if (!limitId) {
+    return res.status(400).json({ error: 'limitId_required' });
+  }
+
+  const limit = getLimitConfig(limitId);
+  if (!limit) {
+    return res.status(400).json({ error: 'unknown_limit' });
+  }
+
+  const engine = createNewTableForLimit(limitId);
+  if (!engine) {
+    return res.status(409).json({ error: 'no_more_tables_for_limit' });
+  }
+
+  return res.json({
+    tableId: engine.id,
+    limitId: engine.limitId,
+    name:    limit.name
+  });
 });
 
 // ========== /log – общий лог по всем столам ==========
