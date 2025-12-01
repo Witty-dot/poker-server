@@ -575,45 +575,57 @@
       top: 50%;
       transform: translate(-50%, -50%);
       border-radius: 50%;
+      width: 26%;
+      height: 26%;
 
-    /* ≈ 1/4 от диаметра фишки */
-      width: 25%;
-      height: 25%;
-
-    /* 1) Фасетный конус с жёсткими гранями */
+    /* — Фасетный Royal Sapphire — */
       background:
-    /* верхний блик-линза */
-      radial-gradient(circle at 32% 28%,
-      rgba(210,225,255,0.95) 0 20%,
-      rgba(210,225,255,0.0) 40%
+    /* ВСПЫШКА-ЛИНЗА */
+      radial-gradient(circle at 40% 30%,
+      rgba(235,245,255,0.95) 0%,
+      rgba(235,245,255,0.0) 35%
     ),
-    /* нижний мягкий бленд */
-      radial-gradient(circle at 65% 75%,
-      rgba(90,130,255,0.85) 0 16%,
-      rgba(90,130,255,0.0) 45%
+
+    /* ГЛУБИНА САПФИРА */
+      radial-gradient(circle at 60% 75%,
+      rgba(60,110,255,0.75) 0%,
+      rgba(20,30,90,1) 70%
     ),
-    /* сами грани камня */
+
+    /* МНОГОГРАННЫЙ БЛЕСК (мелкие грани вместо крупных) */
       conic-gradient(
-      from -20deg,
-      #11142b 0deg 25deg,
-      #3047c2 25deg 55deg,
-      #080b1e 55deg 90deg,
-      #273ca4 90deg 130deg,
-      #060816 130deg 175deg,
-      #2c41b6 175deg 215deg,
-      #050715 215deg 260deg,
-      #2438a8 260deg 300deg,
-      #0f1330 300deg 360deg
+      from 10deg,
+      #0d112b 0deg   10deg,
+      #3452d4 10deg  22deg,
+      #0a0c1e 22deg  35deg,
+      #2a44be 35deg  48deg,
+      #080a18 48deg  62deg,
+      #273fc9 62deg  78deg,
+      #050714 78deg  95deg,
+      #2138b6 95deg  110deg,
+      #0c1027 110deg 126deg,
+      #3955df 126deg 142deg,
+      #070912 142deg 160deg,
+      #263fc9 160deg 175deg,
+      #06080f 175deg 192deg,
+      #2037b2 192deg 208deg,
+      #0b0f27 208deg 225deg,
+      #3250d7 225deg 242deg,
+      #080a14 242deg 260deg,
+      #273fca 260deg 275deg,
+      #05070e 275deg 292deg,
+      #233ac1 292deg 310deg,
+      #0a0d20 310deg 330deg,
+      #314bd2 330deg 360deg
     );
 
-    /* Линзовый объём и лёгкое свечение */
+    /* Объёмная линза + сдержанный ореол */
       box-shadow:
       inset 0 0 3px rgba(255,255,255,0.45),
-      inset 0 0 10px rgba(120,150,255,0.8),
-      0 0 5px rgba(70,100,210,0.35);
+      inset 0 0 18px rgba(80,120,255,0.9),
+      0 0 6px rgba(90,130,255,0.40);
 
-    /* Оправка */
-      border: 1px solid rgba(150,170,255,0.55);
+      border: 1px solid rgba(140,160,255,0.55);
     }
     /* ---------- HERO / ACTIONS ---------- */
 
