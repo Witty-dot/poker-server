@@ -1,0 +1,311 @@
+/* ---------- TABLE WRAP + CENTER ---------- */
+
+.table-wrap {
+  border-radius:24px;
+  background:radial-gradient(circle at top,#18182b,#050509 65%);
+  border:1px solid rgba(255,255,255,0.07);
+  box-shadow:0 0 50px rgba(0,0,0,0.9);
+  padding:12px;
+  position:relative;
+  flex:2;
+  min-width:0;
+}
+
+.table-center {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+/* ---------- POKER TABLE (СКИН) ---------- */
+
+.poker-table {
+  width:100%;
+  max-width:820px;
+  aspect-ratio:2.3/1;
+  border-radius:999px;
+  position:relative;
+  background:
+    radial-gradient(circle at 50% -40%,rgba(255,255,255,0.16),transparent 60%),
+    radial-gradient(circle at 50% 130%,rgba(111,122,255,0.24),#050509 70%);
+  box-shadow:0 0 26px rgba(111,122,255,0.6);
+  margin:auto;
+  overflow:visible;
+}
+
+.poker-table-inner {
+  position:absolute;
+  inset:14%;
+  border-radius:999px;
+  background:
+    radial-gradient(circle at 50% 0,rgba(255,255,255,0.06),transparent 65%),
+    radial-gradient(circle at 50% 130%,rgba(111,122,255,0.22),#050509 80%);
+  border:1px solid rgba(255,255,255,0.14);
+  box-shadow:inset 0 0 40px rgba(0,0,0,0.9);
+}
+
+/* Логотип в центре стола */
+
+.table-logo {
+  position:absolute;
+  top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  text-align:center;
+  font-size:14px;
+  letter-spacing:0.26em;
+  color:rgba(245,245,255,0.95);
+  text-transform:uppercase;
+  pointer-events:none;
+  white-space:nowrap;
+  z-index:1;
+}
+
+.table-logo span {
+  display:block;
+  font-size:9px;
+  margin-top:3px;
+  letter-spacing:0.3em;
+  color:rgba(192,196,255,0.85);
+}
+
+/* Пот, борд и сайд-поты */
+
+#pot {
+  position:absolute;
+  top:50%; left:50%;
+  transform:translate(-50%,-50%) translateY(-30px);
+  font-size:12px;
+  color:rgba(230,230,255,0.9);
+  text-align:center;
+  display:none;
+  z-index:2;
+}
+
+#pot span {
+  font-weight:600;
+  color:#fff;
+}
+
+#board {
+  position:absolute;
+  top:50%; left:50%;
+  transform:translate(-50%,-50%) translateY(6px);
+  display:flex;
+  gap:6px;
+  z-index:3;
+}
+
+#sidePots {
+  position:absolute;
+  top:50%; left:50%;
+  transform:translate(-50%,-50%) translateY(40px);
+  font-size:11px;
+  color:rgba(200,203,255,0.9);
+  text-align:center;
+  z-index:4;
+}
+
+/* Карты */
+
+.card {
+  width:28px;
+  height:38px;
+  border-radius:6px;
+  background:radial-gradient(circle at 0 0,#ffffff,#e4e4f4);
+  border:1px solid rgba(0,0,0,0.08);
+  box-shadow:0 4px 10px rgba(0,0,0,0.6);
+  position:relative;
+  overflow:hidden;
+}
+
+.card::after {
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(135deg,rgba(0,0,0,0.1),transparent 60%);
+  mix-blend-mode:multiply;
+}
+
+.card-rank {
+  position:absolute;
+  left:4px; top:3px;
+  font-size:11px;
+  font-weight:600;
+}
+
+.card-suit {
+  position:absolute;
+  right:4px; bottom:3px;
+  font-size:9px;
+}
+
+.card.red   { color:#d41245; }
+.card.black { color:#16162a; }
+
+.card--highlight {
+  box-shadow:
+    0 0 8px rgba(255,65,111,0.95),
+    0 0 14px rgba(255,65,111,0.75);
+  border:2px solid rgba(255,65,111,0.95) !important;
+}
+
+.card.card-back {
+  background:
+    radial-gradient(circle at 20% 0,#1b1b30,#050509 70%);
+  border:1px solid rgba(111,122,255,0.8);
+  box-shadow:0 0 12px rgba(111,122,255,0.85);
+}
+
+.card-back-inner {
+  position:absolute;
+  inset:3px;
+  border-radius:5px;
+  border:1px dashed rgba(111,122,255,0.6);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:10px;
+  letter-spacing:0.16em;
+  color:rgba(196,200,255,0.95);
+  text-transform:uppercase;
+}
+
+/* ---------- SEATS (СТУЛЬЯ ВОКРУГ) ---------- */
+
+#players {
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  z-index:5;
+}
+
+.seat {
+  position:absolute;
+  height:32px;
+  padding:4px 10px;
+  border-radius:999px;
+  background:rgba(5,5,15,0.96);
+  border:1px solid rgba(255,255,255,0.14);
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:11px;
+  color:#9a9aad;
+  pointer-events:auto;
+  transition:0.2s;
+}
+
+.seat-avatar {
+  width:18px; height:18px;
+  border-radius:50%;
+  background:radial-gradient(circle at 0 0,rgba(111,122,255,0.45),#050509);
+  border:1px solid rgba(255,255,255,0.3);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:9px;
+  font-weight:600;
+  color:#f5f5ff;
+  flex-shrink:0;
+}
+
+.seat-text {
+  display:flex;
+  flex-direction:column;
+  gap:0;
+}
+
+.seat-name {
+  max-width:60px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.seat-stack {
+  font-weight:600;
+  color:#fff;
+}
+
+/* расположение стульев */
+
+.seat-1 { top:0%;  left:50%; transform:translate(-50%,0); }
+.seat-2 { top:24%; right:2%; transform:translate(0,-50%); }
+.seat-3 { bottom:24%; right:2%; transform:translate(0,50%); }
+.seat-4 { bottom:0%; left:50%; transform:translate(-50%,0); }
+.seat-5 { bottom:24%; left:2%; transform:translate(0,50%); }
+.seat-6 { top:24%; left:2%; transform:translate(0,-50%); }
+
+.seat.active {
+  box-shadow:
+    0 0 18px rgba(111,122,255,0.7),
+    0 0 30px rgba(111,122,255,0.4);
+  border-color:rgba(111,122,255,0.9);
+  color:#e5e7ff;
+}
+
+/* ---------- dealer slots: невидимые точки под фишку дилера ---------- */
+
+.dealer-slot {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  pointer-events: none;
+  /* для отладки:
+  background: rgba(255,0,0,0.7);
+  border-radius: 50%;
+  */
+}
+
+/*
+  Раскладка слотов (hex по борту стола):
+
+  seat-1  – верх по центру, слот чуть ниже стула, на обивке.
+  seat-2  – правый верх, слот ниже стула (по часовой).
+  seat-3  – правый низ, слот ближе к нижней дуге (по часовой).
+  seat-4  – низ по центру, слот чуть выше стула, на обивке.
+  seat-5  – левый низ, слот выше стула (по часовой).
+  seat-6  – левый верх, слот ближе к верхней дуге (по часовой).
+*/
+
+/* P1 – сверху, слот в центре, но чуть глубже внутрь стола */
+.dealer-slot-1 {
+  top: 16%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* P2 – справа сверху, слот ниже стула по часовой */
+.dealer-slot-2 {
+  top: 32%;
+  right: 8%;
+  transform: translate(50%, -50%);
+}
+
+/* P3 – справа снизу, слот ближе к нижней дуге */
+.dealer-slot-3 {
+  bottom: 32%;
+  right: 8%;
+  transform: translate(50%, 50%);
+}
+
+/* P4 – снизу, слот в центре, чуть выше стула */
+.dealer-slot-4 {
+  bottom: 16%;
+  left: 50%;
+  transform: translate(-50%, 50%);
+}
+
+/* P5 – слева снизу, слот выше стула по часовой */
+.dealer-slot-5 {
+  bottom: 32%;
+  left: 8%;
+  transform: translate(-50%, 50%);
+}
+
+/* P6 – слева сверху, слот ближе к верхней дуге */
+.dealer-slot-6 {
+  top: 32%;
+  left: 8%;
+  transform: translate(-50%, -50%);
+}
