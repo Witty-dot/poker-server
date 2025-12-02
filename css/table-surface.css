@@ -251,10 +251,10 @@
   width: 2px;
   height: 2px;
   pointer-events: none;
-  /* для отладки можно включить:
+  /* для отладки можно включить:*/
   background: rgba(255,0,0,0.7);
   border-radius: 50%;
-  */
+  /**/
 }
 
 /*
