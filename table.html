@@ -2,791 +2,1141 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <title>Midnight Black · Table</title>
+  <title>Midnight Black Poker – Table</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- Основной стиль твоего проекта -->
-  <link rel="stylesheet" href="/css/main.css" />
-
   <style>
-    /* ====== БАЗОВЫЙ ЛЕЙАУТ СТРАНИЦЫ СТОЛА ====== */
+    :root {
+      --bg-main: #050509;
+      --bg-secondary: #0c0c14;
+      --bg-elevated: #10101b;
+      --accent: #6f7aff;
+      --accent-strong: rgba(111, 122, 255, 0.85);
+      --danger: #ff416f;
+      --success: #35d49b;
+      --text-main: #f5f5f5;
+      --text-muted: #9a9aad;
+      --border-soft: rgba(255,255,255,0.08);
+      --shadow-soft: 0 0 50px rgba(0,0,0,0.9);
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    html, body { height:100%; }
 
     body {
-      margin: 0;
-      padding: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
-      background: #050712;
-      color: #fff;
-      -webkit-font-smoothing: antialiased;
+      font-family: system-ui, -apple-system, "SF Pro Text", "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top,#151528 0,#050509 55%,#000 100%);
+      color: var(--text-main);
+      overflow-x: hidden;
     }
 
-    .table-page {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      padding: 12px 10px 16px;
-      box-sizing: border-box;
+    .page { min-height:100vh; display:flex; flex-direction:column; }
+
+    /* ---------- HEADER ---------- */
+
+    .topbar {
+      padding:8px 12px 10px;
+      background:linear-gradient(to bottom,
+        rgba(5,5,10,0.96),
+        rgba(5,5,10,0.85),
+        transparent
+      );
+      border-bottom:1px solid rgba(255,255,255,0.05);
+      backdrop-filter:blur(14px);
+      position:sticky;
+      top:0;
+      z-index:10;
     }
 
-    /* ====== ТОП-БАР С ЗАГОЛОВКОМ, ГЕАРОМ И КНОПКАМИ ====== */
-
-    .table-topbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      margin-bottom: 10px;
+    .topbar-row {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      min-width:0;
     }
 
-    .brand-block {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
+    .topbar-left {
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-width:0;
     }
 
-    .brand-title {
-      font-size: 16px;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
+    .logo-mark {
+      width:26px;
+      height:26px;
+      border-radius:50%;
+      background:conic-gradient(from 210deg,#000,#151528,#6f7aff,#000);
+      box-shadow:0 0 12px rgba(111,122,255,0.7);
+      position:relative;
+      flex-shrink:0;
     }
 
-    .brand-subtitle {
-      font-size: 11px;
-      opacity: 0.7;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
+    .logo-mark::after {
+      content:"";
+      position:absolute;
+      inset:26%;
+      border-radius:inherit;
+      border:1px solid rgba(255,255,255,0.4);
+      background:radial-gradient(circle,rgba(255,255,255,0.2),transparent);
+    }
+
+    .topbar-title-block {
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width:0;
+    }
+
+    .topbar-main {
+      font-size:13px;
+      letter-spacing:0.18em;
+      text-transform:uppercase;
+      white-space:nowrap;
+    }
+
+    .topbar-sub {
+      font-size:11px;
+      letter-spacing:0.2em;
+      text-transform:uppercase;
+      color:var(--text-muted);
+      white-space:nowrap;
     }
 
     .topbar-right {
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      display:flex;
+      flex-direction:column;
+      align-items:flex-end;
+      gap:4px;
+      min-width:0;
     }
 
-    .gear-button {
-      width: 32px;
-      height: 32px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,0.14);
-      background: radial-gradient(circle at 30% 10%, #252b43, #111320);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
+    .topbar-actions {
+      display:flex;
+      gap:6px;
+      flex-wrap:nowrap;
     }
 
-    .gear-button svg {
-      width: 16px;
-      height: 16px;
-    }
-
-    .pill-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      justify-content: flex-end;
+    .topbar-table-line {
+      display:flex;
+      gap:6px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
     }
 
     .pill {
-      border-radius: 999px;
-      padding: 6px 10px;
-      font-size: 11px;
-      border: 1px solid rgba(255,255,255,0.18);
-      background: radial-gradient(circle at 10% 0%, #1c2034, #111320);
-      white-space: nowrap;
+      padding:4px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,0.12);
+      background:rgba(10,10,20,0.85);
+      font-size:11px;
+      white-space:nowrap;
     }
 
-    .pill--primary {
-      box-shadow: 0 0 0 1px rgba(255,255,255,0.05), 0 0 15px rgba(0,255,200,0.25);
-      background: radial-gradient(circle at 10% 0%, #1f2740, #10121e);
+    .btn {
+      border-radius:999px;
+      padding:6px 12px;
+      font-size:12px;
+      border:1px solid transparent;
+      cursor:pointer;
+      background:transparent;
+      color:var(--text-main);
+      transition:0.15s;
+      white-space:nowrap;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    .pill--danger {
-      border-color: rgba(255,75,110,0.85);
-      background: radial-gradient(circle at 15% 0%, #3a1220, #151018);
-      box-shadow: 0 0 18px rgba(255,60,120,0.35);
+    .btn-icon {
+      border-color:rgba(255,255,255,0.18);
+      color:var(--text-muted);
+      background:radial-gradient(circle at 0 0,rgba(255,255,255,0.08),transparent);
+      padding-inline:10px;
+      font-size:14px;
     }
 
-    .pill-label {
-      opacity: 0.7;
-      margin-right: 4px;
+    .btn-join {
+      border:1px solid rgba(53,212,155,0.65);
+      background:radial-gradient(circle at 0 0,rgba(53,212,155,0.35),#073321);
+      color:#e8fff7;
+      box-shadow:0 0 16px rgba(53,212,155,0.8);
     }
 
-    /* Прижимаем «Стол Midnight Black» и «N / 6 игроков» в одну линию на мобилках */
-    @media (max-width: 480px) {
-      .pill-row {
-        max-width: 75%;
+    .btn-leave {
+      border-color:rgba(255,65,111,0.55);
+      background:radial-gradient(circle at 0 0,rgba(255,65,111,0.2),transparent);
+      color:#ffe9f1;
+      box-shadow:0 0 14px rgba(255,65,111,0.4);
+    }
+
+    .btn.is-pressed,
+    .btn:active {
+      transform:translateY(1px) scale(0.97);
+      filter:brightness(1.2);
+      transition:0.06s;
+    }
+
+    /* join — зелёный неон */
+    .btn-join.is-pressed,
+    .btn-join:active {
+      box-shadow:
+      0 0 22px rgba(53,212,155,1),
+      inset 0 0 18px rgba(53,212,155,0.9);
+    }
+
+    /* leave — розовый неон */
+    .btn-leave.is-pressed,
+    .btn-leave:active {
+      box-shadow:
+      0 0 22px rgba(255,65,111,1),
+      inset 0 0 18px rgba(255,65,111,0.95);
+    }
+
+    /* ---------- MAIN LAYOUT ---------- */
+
+    .main {
+      flex:1;
+      display:flex;
+      flex-direction:row;
+      padding:10px;
+      gap:10px;
+      min-height:0;
+    }
+
+    @media (max-width:950px) {
+      .main {
+        flex-direction:column;
       }
-    }
-
-    /* ====== ОБЛАСТЬ СТОЛА ====== */
-
-    .table-main {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      margin-top: 4px;
-      flex: 1 0 auto;
     }
 
     .table-wrap {
-      border-radius: 22px;
-      padding: 14px 12px 10px;
-      background: radial-gradient(circle at 20% 0%, #171b2d, #050712 60%);
-      box-shadow: 0 0 30px rgba(0,0,0,0.8);
+      border-radius:24px;
+      background:radial-gradient(circle at top,#18182b,#050509 65%);
+      border:1px solid rgba(255,255,255,0.07);
+      box-shadow:var(--shadow-soft);
+      padding:12px;
+      position:relative;
+      flex:2;
+      min-width:0;
     }
 
-    .table-headerline {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      font-size: 11px;
-      margin-bottom: 8px;
+    .table-top-info {
+      display:flex;
+      justify-content:space-between;
+      font-size:12px;
+      color:var(--text-muted);
+      margin-bottom:4px;
+      gap:8px;
+    }
+
+    .table-top-left {
+      display:flex;
+      align-items:flex-start;
+      gap:10px;
+      max-width:60%;
+    }
+
+    .dot-live {
+      width:8px;
+      height:8px;
+      margin-top:3px;
+      border-radius:50%;
+      background:var(--success);
+      box-shadow:0 0 10px rgba(53,212,155,0.9);
+      flex-shrink:0;
     }
 
     #tableInfo {
-      color: #c8d4ff;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      line-height:1.3;
     }
 
-    .table-minmax {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      font-size: 10px;
-      text-align: right;
+    .dealer-short {
+      font-size:11px;
+      color:#f7e496;
+      margin-top:2px;
+      opacity:0.9;
+      max-height:2.6em;
+      overflow:hidden;
     }
 
-    /* ====== СТОЛ (СУКНО) ====== */
-
-    .table-viewport {
-      position: relative;
-      border-radius: 26px;
-      padding: 14px;
-      background: radial-gradient(circle at 50% 0%, #1c2340, #050711 75%);
-      overflow: visible;
-      min-height: 220px;
+    .table-top-right {
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      align-items:flex-end;
     }
 
-    /* овальная форма стола */
-    #table {
-      position: relative;
-      width: 100%;
-      max-width: 720px;
-      margin: 0 auto;
-      padding: 26px 24px;
-      border-radius: 999px;
-      background: radial-gradient(circle at 50% 10%, #191d30, #05060e 72%);
-      box-shadow: 0 0 40px rgba(0,0,0,0.9);
+    .mini-pill {
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,0.1);
+      padding:1px 7px;
+      font-size:11px;
+      color:var(--text-muted);
+      background:rgba(5,5,15,0.9);
     }
 
-    /* Слой борда + банк */
-    .board-layer {
-      position: absolute;
-      left: 16%;
-      right: 16%;
-      top: 32%;
-      bottom: 32%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      pointer-events: none;
-      z-index: 3;
+    .table-center {
+      display:flex;
+      align-items:center;
+      justify-content:center;
     }
 
-    #board {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 6px;
+    /* ---------- TABLE ---------- */
+
+    .poker-table {
+      width:100%;
+      max-width:820px;
+      aspect-ratio:2.3/1;
+      border-radius:999px;
+      position:relative;
+      background:
+        radial-gradient(circle at 50% -40%,rgba(255,255,255,0.16),transparent 60%),
+        radial-gradient(circle at 50% 130%,rgba(111,122,255,0.24),#050509 70%);
+      box-shadow:0 0 26px rgba(111,122,255,0.6);
+      margin:auto;
+      overflow:visible; /* стулья не обрезаем */
     }
 
-    .pot-block {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 2px;
-      font-size: 11px;
-      text-shadow: 0 0 4px rgba(0,0,0,0.9);
+    .poker-table-inner {
+      position:absolute;
+      inset:14%;
+      border-radius:999px;
+      background:
+        radial-gradient(circle at 50% 0,rgba(255,255,255,0.06),transparent 65%),
+        radial-gradient(circle at 50% 130%,rgba(111,122,255,0.22),#050509 80%);
+      border:1px solid rgba(255,255,255,0.14);
+      box-shadow:inset 0 0 40px rgba(0,0,0,0.9);
+    }
+
+    .table-logo {
+      position:absolute;
+      top:50%; left:50%;
+      transform:translate(-50%,-50%);
+      text-align:center;
+      font-size:14px;
+      letter-spacing:0.26em;
+      color:rgba(245,245,255,0.95);
+      text-transform:uppercase;
+      pointer-events:none;
+      white-space:nowrap;
+    }
+
+    .table-logo span {
+      display:block;
+      font-size:9px;
+      margin-top:3px;
+      letter-spacing:0.3em;
+      color:rgba(192,196,255,0.85);
     }
 
     #pot {
-      padding: 2px 8px;
-      border-radius: 999px;
-      background: rgba(5, 8, 20, 0.85);
-      border: 1px solid rgba(255,255,255,0.08);
-      opacity: 0.96;
-      white-space: nowrap;
+      position:absolute;
+      top:50%; left:50%;
+      transform:translate(-50%,-50%) translateY(-30px);
+      font-size:12px;
+      color:rgba(230,230,255,0.9);
+      text-align:center;
+      display:none;
+    }
+
+    #pot span {
+      font-weight:600;
+      color:#fff;
+    }
+
+    #board {
+      position:absolute;
+      top:50%; left:50%;
+      transform:translate(-50%,-50%) translateY(6px);
+      display:flex;
+      gap:6px;
     }
 
     #sidePots {
-      min-height: 1.1em; /* чтобы место под текст всегда было */
-      font-size: 10px;
-      opacity: 0.85;
-      text-align: center;
-      max-width: 90%;
+      position:absolute;
+      top:50%; left:50%;
+      transform:translate(-50%,-50%) translateY(40px);
+      font-size:11px;
+      color:rgba(200,203,255,0.9);
+      text-align:center;
     }
 
-    /* Фишка дилера поверх всего */
-    #dealerChip {
-      position: absolute;
-      width: 22px;
-      height: 22px;
-      border-radius: 999px;
-      background: radial-gradient(circle at 30% 10%, #ffe9b5, #c89a45);
-      box-shadow: 0 0 14px rgba(255,220,120,0.7);
-      display: none;
-      z-index: 5;
+    .card {
+      width:28px;
+      height:38px;
+      border-radius:6px;
+      background:radial-gradient(circle at 0 0,#ffffff,#e4e4f4);
+      border:1px solid rgba(0,0,0,0.08);
+      box-shadow:0 4px 10px rgba(0,0,0,0.6);
+      position:relative;
+      overflow:hidden;
     }
 
-    /* Сиденья вокруг стола — упрощённо, опираемся на твои классы .seat */
+    .card::after {
+      content:"";
+      position:absolute;
+      inset:0;
+      background:linear-gradient(135deg,rgba(0,0,0,0.1),transparent 60%);
+      mix-blend-mode:multiply;
+    }
+
+    .card-rank {
+      position:absolute;
+      left:4px; top:3px;
+      font-size:11px;
+      font-weight:600;
+    }
+
+    .card-suit {
+      position:absolute;
+      right:4px; bottom:3px;
+      font-size:9px;
+    }
+
+    .card.red { color:#d41245; }
+    .card.black { color:#16162a; }
+
+    /* НЕОНОВАЯ ПОДСВЕТКА КОМБИНАЦИИ (под цвет leave-кнопки) */
+    .card--highlight {
+      box-shadow:
+        0 0 8px rgba(255,65,111,0.95),
+        0 0 14px rgba(255,65,111,0.75);
+      border:2px solid rgba(255,65,111,0.95) !important;
+    }
+
+    /* РУБАШКА КАРТ ПОД MIDNIGHT BLACK */
+    .card.card-back {
+      background:
+        radial-gradient(circle at 20% 0,#1b1b30,#050509 70%);
+      border:1px solid rgba(111,122,255,0.8);
+      box-shadow:0 0 12px rgba(111,122,255,0.85);
+    }
+
+    .card-back-inner {
+      position:absolute;
+      inset:3px;
+      border-radius:5px;
+      border:1px dashed rgba(111,122,255,0.6);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:10px;
+      letter-spacing:0.16em;
+      color:rgba(196,200,255,0.95);
+      text-transform:uppercase;
+    }
+
+    /* ---------- SEATS ---------- */
+
+    #players {
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+    }
+
     .seat {
-      position: absolute;
-      padding: 4px 8px;
-      border-radius: 999px;
-      background: rgba(10, 13, 26, 0.92);
-      border: 1px solid rgba(255,255,255,0.12);
-      font-size: 10px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 1px;
-      min-width: 60px;
-      text-align: center;
+      position:absolute;
+      height:32px;
+      padding:4px 10px;
+      border-radius:999px;
+      background:rgba(5,5,15,0.96);
+      border:1px solid rgba(255,255,255,0.14);
+      display:flex;
+      align-items:center;
+      gap:6px;
+      font-size:11px;
+      color:var(--text-muted);
+      pointer-events:auto;
+      transition:0.2s;
     }
 
-    .seat--empty {
-      opacity: 0.45;
+    .seat-avatar {
+      width:18px; height:18px;
+      border-radius:50%;
+      background:radial-gradient(circle at 0 0,rgba(111,122,255,0.45),#050509);
+      border:1px solid rgba(255,255,255,0.3);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:9px;
+      font-weight:600;
+      color:#f5f5ff;
+      flex-shrink:0;
+    }
+
+    .seat-text {
+      display:flex;
+      flex-direction:column;
+      gap:0;
     }
 
     .seat-name {
-      font-size: 10px;
+      max-width:60px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
 
     .seat-stack {
-      font-size: 10px;
-      opacity: 0.8;
+      font-weight:600;
+      color:#fff;
     }
+
+    .seat-1 { top:0%;  left:50%; transform:translate(-50%,0); }
+    .seat-2 { top:24%; right:2%; transform:translate(0,-50%); }
+    .seat-3 { bottom:24%; right:2%; transform:translate(0,50%); }
+    .seat-4 { bottom:0%; left:50%; transform:translate(-50%,0); }
+    .seat-5 { bottom:24%; left:2%; transform:translate(0,50%); }
+    .seat-6 { top:24%; left:2%; transform:translate(0,-50%); }
 
     .seat.active {
-      box-shadow: 0 0 14px rgba(0,255,200,0.6);
-      border-color: rgba(0,255,200,0.9);
+      box-shadow:
+        0 0 18px rgba(111,122,255,0.7),
+        0 0 30px rgba(111,122,255,0.4);
+      border-color:rgba(111,122,255,0.9);
+      color:#e5e7ff;
     }
 
-    /* Раскладка сидений (P1–P6) — используем твои id p1...p6 */
-    #seat-1 { top: 6%;  left: 50%; transform: translateX(-50%); }
-    #seat-2 { top: 30%; right: 3%; }
-    #seat-3 { bottom: 30%; right: 3%; }
-    #seat-4 { bottom: 4%; left: 50%; transform: translateX(-50%); }
-    #seat-5 { bottom: 30%; left: 3%; }
-    #seat-6 { top: 30%; left: 3%; }
+    /* ===============================
+    Dealer Chip — Neon Midnight Black
+    =============================== */
+    /* База фишки — практически как была */
+    #dealerChip {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
 
-    /* короткий текст дилера под столом справа */
-    .table-under {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 8px;
-      font-size: 11px;
+    background:
+    radial-gradient(circle at 50% 45%,
+      #151623 0%,
+      #05050b 65%,
+      #000000 100%
+    );
+
+      border: 1px solid rgba(120,130,200,0.25);
+
+      box-shadow:
+      0 0 6px rgba(60, 90, 200, 0.30);
+
+      overflow: visible;
     }
 
-    #dealerShort {
-      max-width: 70%;
-      opacity: 0.85;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    /* Фактурный сапфир с гранями */
+    #dealerChip::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+
+    /* ≈ 1/4 от диаметра фишки */
+    width: 25%;
+    height: 25%; 
+
+    /* 1) Фасетный конус с жёсткими гранями */
+    background:
+    /* верхний блик-линза */
+    radial-gradient(circle at 32% 28%,
+      rgba(210,225,255,0.95) 0 20%,
+      rgba(210,225,255,0.0) 40%
+    ),
+    /* нижний мягкий бленд */
+    radial-gradient(circle at 65% 75%,
+      rgba(90,130,255,0.85) 0 16%,
+      rgba(90,130,255,0.0) 45%
+    ),
+    /* сами грани камня */
+    conic-gradient(
+      from -20deg,
+      #11142b 0deg 25deg,
+      #3047c2 25deg 55deg,
+      #080b1e 55deg 90deg,
+      #273ca4 90deg 130deg,
+      #060816 130deg 175deg,
+      #2c41b6 175deg 215deg,
+      #050715 215deg 260deg,
+      #2438a8 260deg 300deg,
+      #0f1330 300deg 360deg
+    );
+
+    /* Линзовый объём и лёгкое свечение */
+    box-shadow:
+      inset 0 0 3px rgba(255,255,255,0.45),
+      inset 0 0 10px rgba(120,150,255,0.8),
+      0 0 5px rgba(70,100,210,0.35);
+
+    /* Оправка */
+    border: 1px solid rgba(150,170,255,0.55);
+    }
+    /* ---------- HERO / ACTIONS ---------- */
+
+    .bottom-panel {
+      border-radius:18px;
+      background:radial-gradient(circle at 0 0,#18182a,#050509 70%);
+      border:1px solid rgba(255,255,255,0.07);
+      box-shadow:var(--shadow-soft);
+      padding:10px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      margin-top:10px;
     }
 
-    /* ====== HERO-ПАНЕЛЬ, КНОПКИ ДЕЙСТВИЙ И ЧАТ ====== */
-
-    .bottom-split {
-      display: grid;
-      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-      gap: 10px;
-      margin-top: 10px;
+    .hero-row {
+      display:grid;
+      grid-template-columns:minmax(0,2.2fr) minmax(0,3.2fr) minmax(0,1.5fr);
+      gap:10px;
+      align-items:center;
     }
 
-    .hero-panel {
-      border-radius: 18px;
-      padding: 12px 10px;
-      background: radial-gradient(circle at 20% 0%, #191c2f, #050712 70%);
+    @media (max-width:900px) {
+      .hero-row { grid-template-columns:minmax(0,1fr); }
     }
 
-    .hero-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 10px;
+    .hero-info {
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-width:0;
     }
 
     .hero-avatar {
-      width: 32px;
-      height: 32px;
-      border-radius: 999px;
-      background: radial-gradient(circle at 20% 0%, #252b43, #151827);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 13px;
-      font-weight: 600;
+      width:40px; height:40px;
+      border-radius:50%;
+      background:radial-gradient(circle,rgba(111,122,255,0.25),#050509);
+      border:1px solid rgba(255,255,255,0.15);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:600;
+      letter-spacing:0.12em;
     }
 
-    .hero-name-block {
-      display: flex;
-      flex-direction: column;
-      gap: 1px;
-      font-size: 11px;
+    .hero-meta {
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      font-size:12px;
     }
 
-    .hero-stack-line {
-      font-size: 11px;
-      opacity: 0.85;
+    .hero-stack {
+      font-size:13px;
+      font-weight:600;
     }
 
-    .hero-cards {
-      display: flex;
-      gap: 6px;
-      margin-left: auto;
+    #hand {
+      display:flex;
+      gap:6px;
+      margin-left:auto;
     }
 
     .hero-card-slot {
-      width: 32px;
-      height: 45px;
-      border-radius: 6px;
-      background: rgba(8,10,20,0.85);
-      overflow: hidden;
+      width:34px;
+      height:46px;
+      border-radius:8px;
+      background:transparent;
+      border:none;
+      box-shadow:none;
+      overflow:hidden;
     }
 
-    .hero-status {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      font-size: 11px;
-      margin-bottom: 10px;
+    .action-panel {
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      background:rgba(5,5,15,0.92);
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,0.1);
+      padding:8px 9px;
+      min-width:0;
     }
 
-    .hero-status-row {
-      display: flex;
-      justify-content: space-between;
+    .bet-row {
+      display:grid;
+      grid-template-columns:minmax(0,2.7fr) minmax(0,1.3fr);
+      gap:8px;
+      align-items:center;
+      min-width:0;
     }
 
-    .hero-actions {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+    .bet-slider-wrap {
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      min-width:0;
     }
 
-    .bet-slider-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 11px;
+    .bet-label-row {
+      display:flex;
+      justify-content:space-between;
+      font-size:11px;
+      color:var(--text-muted);
+      margin-bottom:6px;
     }
 
-    .bet-slider-row input[type="range"] {
-      flex: 1;
+    input[type="range"].range {
+      -webkit-appearance:none;
+      appearance:none;
+      width:100%;
+      height:4px;
+      border-radius:999px;
+      background:rgba(255,255,255,0.08);
+      outline:none;
     }
 
-    .bet-preset-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-bottom: 4px;
+    input[type="range"].range::-webkit-slider-thumb {
+      -webkit-appearance:none;
+      width:14px; height:14px;
+      border-radius:50%;
+      background:#fff;
+      border:2px solid var(--accent-strong);
+      box-shadow:0 0 10px rgba(111,122,255,0.8);
+      margin-top:-5px;
     }
 
-    .bet-preset {
-      border-radius: 999px;
-      padding: 4px 8px;
-      font-size: 11px;
-      border: 1px solid rgba(255,255,255,0.18);
-      background: rgba(10,12,24,0.9);
+    .bet-input-wrap {
+      display:flex;
+      align-items:center;
+      gap:6px;
+      min-width:0;
+      justify-content:flex-end;
+    }
+
+    #betAmount {
+      flex:0 0 80px;
+      max-width:80px;
+      border-radius:16px;
+      border:1px solid rgba(255,255,255,0.15);
+      background:rgba(10,10,20,0.95);
+      padding:4px 9px;
+      font-size:12px;
+      color:var(--text-main);
+      text-align:right;
+    }
+
+    .bet-currency {
+      font-size:11px;
+      color:var(--text-muted);
+      white-space:nowrap;
+    }
+
+    .bet-presets {
+      display:flex;
+      flex-wrap:wrap;
+      gap:5px;
+      font-size:11px;
+    }
+
+    .preset-btn {
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,0.16);
+      background:rgba(10,10,24,0.9);
+      color:#e2e2ff;
+      padding:3px 8px;
+      cursor:pointer;
+    }
+
+    .preset-btn-ghost {
+      border-color:rgba(255,255,255,0.1);
+      color:var(--text-muted);
     }
 
     .actions-row {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 6px;
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:6px;
+      margin-top:4px;
     }
 
     .action-btn {
-      border-radius: 999px;
-      padding: 8px 6px;
-      font-size: 12px;
-      border: none;
-      cursor: pointer;
-      white-space: nowrap;
+      border-radius:999px;
+      padding:7px 10px;
+      font-size:13px;
+      font-weight:500;
+      border:1px solid transparent;
+      cursor:pointer;
+      white-space:nowrap;
+      transition:0.15s;
+      position:relative;
+      overflow:hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .action-fold {
+      background:radial-gradient(circle at 0 0,rgba(255,65,111,0.25),#2b0b16);
+      border-color:rgba(255,65,111,0.7);
+      color:#ffe5ef;
+      box-shadow:0 0 16px rgba(255,65,111,0.55);
+    }
+
+    .action-check {
+      background:radial-gradient(circle at 0 0,rgba(255,255,255,0.06),#10101a);
+      border-color:rgba(255,255,255,0.2);
+      color:#f5f5ff;
+    }
+
+    .action-bet {
+      background:radial-gradient(circle at 0 0,rgba(111,122,255,0.35),#282a68);
+      border-color:rgba(111,122,255,0.85);
+      color:#050509;
+      box-shadow:0 0 18px rgba(111,122,255,0.8);
+    }
+
+    .action-allin {
+      background:radial-gradient(circle at 0 0,rgba(255,215,0,0.25),#4a3a05);
+      border-color:rgba(255,215,0,0.8);
+      color:#fff7d0;
+      box-shadow:0 0 18px rgba(255,215,0,0.7);
+    }
+
+    .action-btn:active,
+    .action-btn.is-pressed {
+      transform:scale(0.94);
+      filter:brightness(1.35);
+      transition:0.05s;
+    }
+    .action-fold:active,
+    .action-fold.is-pressed {
+      box-shadow:0 0 30px rgba(255,65,111,1),
+                 inset 0 0 22px rgba(255,65,111,1);
+    }
+    .action-check:active,
+    .action-check.is-pressed {
+      box-shadow:0 0 26px rgba(255,255,255,0.9),
+                 inset 0 0 20px rgba(255,255,255,1);
+    }
+    .action-bet:active,
+    .action-bet.is-pressed {
+      box-shadow:0 0 38px rgba(111,122,255,1),
+                 inset 0 0 24px rgba(111,122,255,1);
+    }
+    .action-allin:active,
+    .action-allin.is-pressed {
+      box-shadow:0 0 40px rgba(255,215,0,1),
+                 inset 0 0 24px rgba(255,215,0,1);
     }
 
     .action-btn.is-disabled {
-      opacity: 0.45;
-      cursor: default;
+      opacity:0.5;
+      cursor:default;
+      box-shadow:none;
     }
 
-    .action-btn-fold {
-      background: radial-gradient(circle at 10% 0%, #3b1019, #24060d);
-      color: #ffd6df;
+    #checkCallButton {
+      padding:8px 16px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
     }
 
-    .action-btn-call {
-      background: radial-gradient(circle at 10% 0%, #1c2235, #101321);
+    .hero-status {
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      font-size:11px;
+      align-items:flex-end;
     }
 
-    .action-btn-bet {
-      background: radial-gradient(circle at 10% 0%, #19234b, #0b0f21);
+    .hero-best-hand {
+      font-size:11px;
+      color:var(--text-muted);
+      max-width:180px;
+      text-align:right;
     }
 
-    .action-btn-allin {
-      background: radial-gradient(circle at 10% 0%, #4c4010, #2c2205);
-      color: #ffe8a8;
+    /* ---------- CHAT ---------- */
+
+    .side-panel {
+      border-radius:20px;
+      background:radial-gradient(circle at top,#171725,#050509 70%);
+      border:1px solid rgba(255,255,255,0.07);
+      box-shadow:var(--shadow-soft);
+      padding:10px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      min-height:0;
+      flex:0 0 260px;
     }
 
-    .action-btn.is-pressed {
-      transform: translateY(1px) scale(.98);
-      box-shadow: 0 0 0 rgba(0,0,0,0);
+    .side-tabs {
+      display:flex;
+      gap:6px;
+      font-size:12px;
     }
 
-    /* Чат / история */
-    .chat-panel {
-      border-radius: 18px;
-      padding: 10px 10px 8px;
-      background: radial-gradient(circle at 5% 0%, #14172a, #050711 70%);
-      display: flex;
-      flex-direction: column;
-      min-height: 160px;
-      max-height: 260px;
+    .side-tab-btn {
+      flex:1;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,0.15);
+      padding:6px 10px;
+      cursor:pointer;
+      background:transparent;
+      color:var(--text-muted);
     }
 
-    .chat-tabs {
-      display: flex;
-      border-radius: 999px;
-      background: rgba(8,10,22,0.8);
-      padding: 2px;
-      margin-bottom: 6px;
-      font-size: 11px;
+    .side-tab-btn-active {
+      background:rgba(10,10,24,0.96);
+      border-color:rgba(255,255,255,0.2);
+      color:#f5f5ff;
     }
 
-    .chat-tab {
-      flex: 1;
-      text-align: center;
-      padding: 4px 0;
-      border-radius: 999px;
-      opacity: 0.7;
-    }
-
-    .chat-tab--active {
-      background: radial-gradient(circle at 10% 0%, #212842, #151827);
-      opacity: 1;
+    .side-body {
+      flex:1;
+      border-radius:14px;
+      background:rgba(5,5,15,0.9);
+      border:1px solid rgba(255,255,255,0.07);
+      padding:8px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      min-height:0;
     }
 
     #chat {
-      flex: 1;
-      overflow-y: auto;
-      font-size: 11px;
-      padding: 4px 0 6px;
+      flex:1;
+      overflow-y:auto;
+      font-size:11px;
+      color:var(--text-muted);
+      display:flex;
+      flex-direction:column;
+      gap:4px;
     }
 
-    .chat-line-dealer {
-      color: #ffe488;
-    }
-
-    .chat-line-system {
-      color: #8fb8ff;
-    }
-
-    .chat-line-player {
-      color: #e0e3ff;
-    }
+    .chat-line-dealer { color:#f7e496; }
+    .chat-line-system { color:#8fd4ff; }
+    .chat-line-player { color:#e2e2ff; }
 
     .chat-input-row {
-      display: flex;
-      gap: 6px;
-      margin-top: 4px;
+      display:flex;
+      gap:6px;
     }
 
-    #chatInput {
-      flex: 1;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,0.18);
-      background: rgba(10,12,24,0.9);
-      padding: 6px 10px;
-      font-size: 12px;
-      color: #fff;
+    .input {
+      flex:1;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,0.15);
+      background:rgba(10,10,22,0.95);
+      padding:6px 10px;
+      font-size:12px;
+      color:var(--text-main);
     }
 
-    #chatSend {
-      border-radius: 999px;
-      border: none;
-      padding: 0 14px;
-      font-size: 12px;
-      background: radial-gradient(circle at 10% 0%, #202a48, #111524);
-      color: #fff;
-      cursor: pointer;
+    .chat-send {
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,0.2);
+      background:radial-gradient(circle at 0 0,rgba(111,122,255,0.25),transparent);
+      padding:6px 10px;
+      font-size:12px;
+      cursor:pointer;
+      color:#f5f5ff;
     }
 
-    /* ====== АДАПТИВ: МОБИЛА / ПЛАНШЕТ / ДЕСКТОП ====== */
-
-    /* Мобила — всё в одну колонку */
-    @media (max-width: 768px) {
-      .table-page {
-        padding: 10px 8px 14px;
+    @media (max-width:600px) {
+      .topbar-main {
+        font-size:12px;
+        letter-spacing:0.15em;
       }
-
-      .table-topbar {
-        flex-direction: column;
-        align-items: stretch;
+      .topbar-sub {
+        font-size:10px;
+        letter-spacing:0.18em;
       }
-      .topbar-right {
-        justify-content: space-between;
-        width: 100%;
-      }
-
-      .table-viewport {
-        padding: 10px;
-      }
-
-      .board-layer {
-        top: 30%;
-        bottom: 34%;
-      }
-
-      .bottom-split {
-        grid-template-columns: minmax(0, 1fr);
-      }
-
-      .chat-panel {
-        max-height: 220px;
+      .side-panel {
+        flex:0 0 220px;
       }
     }
 
-    /* Горизонтальный режим телефона / маленький планшет: стол слева, панель героя справа */
-    @media (max-width: 1024px) and (orientation: landscape) {
-      .table-page {
-        padding: 6px 10px;
-      }
-
-      .table-main {
-        flex-direction: row;
-        align-items: stretch;
-      }
-
-      .table-wrap {
-        flex: 1.4;
-      }
-
-      .bottom-split {
-        grid-template-columns: minmax(0,1fr);
-      }
-
-      .side-column-landscape {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-    }
-
-    /* Десктоп: как есть, только чуть шире */
-    @media (min-width: 1025px) {
-      .table-page {
-        max-width: 1100px;
-        margin: 0 auto;
-        padding-top: 16px;
-      }
-    }
   </style>
 </head>
-
 <body>
-<div class="table-page">
+<div class="page">
 
-  <!-- TOP BAR -->
-  <header class="table-topbar">
-    <div class="brand-block">
-      <div class="brand-title">MIDNIGHT BLACK</div>
-      <div class="brand-subtitle">TABLE · NL 10/20</div>
-    </div>
-
-    <div class="topbar-right">
-      <button class="gear-button" type="button">
-        <!-- простая иконка шестерни -->
-        <svg viewBox="0 0 24 24" fill="none">
-          <path d="M12 8.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Z"
-                stroke="#ffffff" stroke-width="1.5"/>
-          <path d="M4.75 12c0-.43.04-.85.12-1.26l-1.8-1.4 1.8-3.12 2.2.52
-                   a6.9 6.9 0 0 1 2.2-1.26l.42-2.26h3.6l.42 2.26
-                   a6.9 6.9 0 0 1 2.2 1.26l2.2-.52 1.8 3.12-1.8 1.4
-                   c.08.41.12.83.12 1.26 0 .43-.04.85-.12 1.26l1.8 1.4-1.8 3.12
-                   -2.2-.52a6.9 6.9 0 0 1-2.2 1.26l-.42 2.26h-3.6l-.42-2.26
-                   a6.9 6.9 0 0 1-2.2-1.26l-2.2.52-1.8-3.12 1.8-1.4A7 7 0 0 1 4.75 12Z"
-                stroke="#ffffff" stroke-width="1.1" opacity=".85"/>
-        </svg>
-      </button>
-
-      <div class="pill-row">
-        <button id="btnLeave" class="pill pill--danger" type="button">Сесть за стол</button>
-
-        <div class="pill pill--primary">
-          <span class="pill-label">Стол</span>
-          <span id="tableName">Midnight Black</span>
+  <!-- HEADER -->
+  <header class="topbar">
+    <div class="topbar-row">
+      <div class="topbar-left">
+        <div class="logo-mark"></div>
+        <div class="topbar-title-block">
+          <div class="topbar-main">MIDNIGHT BLACK</div>
+          <div class="topbar-sub" id="tableTitle">TABLE · NL —</div>
         </div>
+      </div>
 
-        <div class="pill">
-          <span id="tablePlayers">0 / 6 игроков</span>
+      <div class="topbar-right">
+        <div class="topbar-actions">
+          <button class="btn btn-icon" id="btnSettings" aria-label="Настройки">⚙</button>
+          <button class="btn btn-join" id="btnLeave">Сесть за стол</button>
+        </div>
+        <div class="topbar-table-line">
+          <span class="pill" id="tableName">Стол #MB-001</span>
+          <span class="pill" id="tablePlayers">0 / 6 игроков</span>
         </div>
       </div>
     </div>
   </header>
 
-  <!-- MAIN AREA: TABLE + HERO/CHAT -->
-  <main class="table-main">
+  <!-- MAIN -->
+  <main class="main">
 
-    <!-- ОБЛАСТЬ СТОЛА -->
+    <!-- TABLE -->
     <section class="table-wrap">
-      <div class="table-headerline">
-        <div id="tableInfo">Live · Hold'em · Блайнды 10 / 20 · Ожидание раздачи</div>
-        <div class="table-minmax">
-          <div id="minBuyin">Мин. бай-ин: —</div>
-          <div id="maxBuyin">Макс. бай-ин: —</div>
+      <div class="table-top-info">
+        <div class="table-top-left">
+          <div class="dot-live"></div>
+          <div>
+            <div id="tableInfo">Live · Hold'em</div>
+            <div class="dealer-short" id="dealerShort"></div>
+          </div>
+        </div>
+        <div class="table-top-right">
+          <div class="mini-pill" id="minBuyin">Мин. бай-ин: —</div>
+          <div class="mini-pill" id="maxBuyin">Макс. бай-ин: —</div>
         </div>
       </div>
 
-      <div class="table-viewport">
-        <div id="table">
+      <div class="table-center">
+        <div class="poker-table" id="table">
+          <div class="poker-table-inner">
+            <div id="pot">Банк: <span>0</span> MBC</div>
 
-          <!-- слой с картами борда и банком (на сукне) -->
-          <div class="board-layer">
+            <div class="table-logo">
+              MIDNIGHT BLACK
+              <span>POKER ROOM</span>
+            </div>
+
             <div id="board"></div>
+            <div id="sidePots"></div>
+          </div>
 
-            <div class="pot-block">
-              <div id="pot">Банк: <span>0</span> MBC</div>
-              <div id="sidePots"></div>
+          <div id="players">
+            <div class="seat seat-1" data-seat="1">
+              <div class="seat-avatar">P1</div>
+              <div class="seat-text">
+                <span class="seat-name">Пусто</span>
+                <span class="seat-stack"></span>
+              </div>
+            </div>
+            <div class="seat seat-2" data-seat="2">
+              <div class="seat-avatar">P2</div>
+              <div class="seat-text">
+                <span class="seat-name">Пусто</span>
+                <span class="seat-stack"></span>
+              </div>
+            </div>
+            <div class="seat seat-3" data-seat="3">
+              <div class="seat-avatar">P3</div>
+              <div class="seat-text">
+                <span class="seat-name">Пусто</span>
+                <span class="seat-stack"></span>
+              </div>
+            </div>
+            <div class="seat seat-4" data-seat="4">
+              <div class="seat-avatar">P4</div>
+              <div class="seat-text">
+                <span class="seat-name">Пусто</span>
+                <span class="seat-stack"></span>
+              </div>
+            </div>
+            <div class="seat seat-5" data-seat="5">
+              <div class="seat-avatar">P5</div>
+              <div class="seat-text">
+                <span class="seat-name">Пусто</span>
+                <span class="seat-stack"></span>
+              </div>
+            </div>
+            <div class="seat seat-6" data-seat="6">
+              <div class="seat-avatar">P6</div>
+              <div class="seat-text">
+                <span class="seat-name">Пусто</span>
+                <span class="seat-stack"></span>
+              </div>
             </div>
           </div>
 
-          <!-- фишка дилера (позиционируется JS-ом) -->
-          <div id="dealerChip"></div>
-
-          <!-- сиденья вокруг стола -->
-          <div id="seat-1" class="seat seat--empty">
-            <div class="seat-name">Свободно</div>
-            <div class="seat-stack"></div>
-          </div>
-          <div id="seat-2" class="seat seat--empty">
-            <div class="seat-name">Свободно</div>
-            <div class="seat-stack"></div>
-          </div>
-          <div id="seat-3" class="seat seat--empty">
-            <div class="seat-name">Свободно</div>
-            <div class="seat-stack"></div>
-          </div>
-          <div id="seat-4" class="seat seat--empty">
-            <div class="seat-name">Свободно</div>
-            <div class="seat-stack"></div>
-          </div>
-          <div id="seat-5" class="seat seat--empty">
-            <div class="seat-name">Свободно</div>
-            <div class="seat-stack"></div>
-          </div>
-          <div id="seat-6" class="seat seat--empty">
-            <div class="seat-name">Свободно</div>
-            <div class="seat-stack"></div>
-          </div>
-
-        </div> <!-- /#table -->
-      </div> <!-- /.table-viewport -->
-
-      <div class="table-under">
-        <div id="dealerShort"></div>
+          <div class="dealer-chip" id="dealerChip" style="display:none;"></div>
+        </div>
       </div>
-    </section>
 
-    <!-- ПРАВАЯ / НИЖНЯЯ КОЛОНКА: HERO + ЧАТ -->
-    <section class="side-column-landscape">
-
-      <div class="bottom-split">
-
-        <!-- HERO + ACTIONS -->
-        <section class="hero-panel">
-          <div class="hero-header">
-            <div class="hero-avatar">MB</div>
-            <div class="hero-name-block">
+      <!-- HERO + ACTIONS -->
+      <section class="bottom-panel">
+        <div class="hero-row">
+          <div class="hero-info">
+            <div class="hero-avatar" id="heroAvatar">MB</div>
+            <div class="hero-meta">
               <div id="heroName">Hero</div>
-              <div class="hero-stack-line">Стек: <span id="heroStack">0</span> MBC</div>
+              <div class="hero-stack">
+                Стек: <span id="heroStack">0</span> MBC
+              </div>
             </div>
-            <div class="hero-cards">
-              <div class="hero-card-slot"></div>
-              <div class="hero-card-slot"></div>
+            <div id="hand">
+              <div class="hero-card-slot" data-slot="1"></div>
+              <div class="hero-card-slot" data-slot="2"></div>
+            </div>
+          </div>
+
+          <div class="action-panel">
+            <div class="bet-row">
+              <div class="bet-slider-wrap">
+                <div class="bet-label-row">
+                  <span>Размер ставки</span>
+                  <span id="betPercentLabel">0%</span>
+                </div>
+                <input type="range" class="range" id="betRange" min="0" max="100" value="0" />
+              </div>
+              <div class="bet-input-wrap">
+                <input type="number" id="betAmount" min="0" step="1" value="0" />
+                <div class="bet-currency">MBC</div>
+              </div>
+            </div>
+
+            <div class="bet-presets">
+              <button class="preset-btn preset-btn-ghost" data-bet-preset="33">⅓ банка</button>
+              <button class="preset-btn preset-btn-ghost" data-bet-preset="50">½ банка</button>
+              <button class="preset-btn preset-btn-ghost" data-bet-preset="75">¾ банка</button>
+              <button class="preset-btn" data-bet-preset="100">Пот</button>
+              <button class="preset-btn preset-btn-ghost" data-bet-preset="max">Макс</button>
+            </div>
+
+            <div class="actions-row" id="actions">
+              <button class="action-btn action-fold" id="foldButton">Fold</button>
+              <button class="action-btn action-check" id="checkCallButton">Check / Call</button>
+              <button class="action-btn action-bet" id="betRaiseButton">Bet / Raise</button>
+              <button class="action-btn action-allin" id="allInButton">All-in</button>
             </div>
           </div>
 
           <div class="hero-status">
-            <div class="hero-status-row">
-              <span id="heroPosition">Стадия: Ожидание</span>
-            </div>
-            <div class="hero-status-row">
-              <span id="heroLastAction">Ожидание других игроков</span>
-            </div>
-            <div class="hero-status-row">
-              <span id="heroBestHand">Комбинация: —</span>
-            </div>
+            <div id="heroPosition">Стадия: —</div>
+            <div id="heroLastAction">Ожидание других игроков</div>
+            <div class="hero-best-hand" id="heroBestHand">Комбинация: —</div>
           </div>
+        </div>
+      </section>
+    </section>
 
-          <div class="hero-actions">
-            <div class="bet-slider-row">
-              <span>Размер ставки</span>
-              <span id="betPercentLabel">0%</span>
-              <span><input id="betAmount" type="number" min="0" value="0" style="width:64px;"> MBC</span>
-            </div>
-            <input id="betRange" type="range" min="0" max="100" value="0" />
+    <!-- CHAT / HISTORY -->
+    <section class="side-panel">
+      <div class="side-tabs">
+        <button class="side-tab-btn side-tab-btn-active" id="tabChat">Чат</button>
+        <button class="side-tab-btn" id="tabHistory">История</button>
+      </div>
 
-            <div class="bet-preset-row">
-              <button type="button" class="bet-preset" data-bet-preset="33">⅓ банка</button>
-              <button type="button" class="bet-preset" data-bet-preset="50">½ банка</button>
-              <button type="button" class="bet-preset" data-bet-preset="75">¾ банка</button>
-              <button type="button" class="bet-preset" data-bet-preset="100">Пот</button>
-              <button type="button" class="bet-preset" data-bet-preset="max">Макс</button>
-            </div>
-
-            <div class="actions-row">
-              <button id="foldButton"       class="action-btn action-btn-fold"  type="button">Fold</button>
-              <button id="checkCallButton"  class="action-btn action-btn-call"  type="button">Check / Call</button>
-              <button id="betRaiseButton"   class="action-btn action-btn-bet"   type="button">Bet / Raise</button>
-              <button id="allInButton"      class="action-btn action-btn-allin" type="button">All-in</button>
-            </div>
-          </div>
-        </section>
-
-        <!-- CHAT -->
-        <section class="chat-panel">
-          <div class="chat-tabs">
-            <div class="chat-tab chat-tab--active">Чат</div>
-            <div class="chat-tab">История</div>
-          </div>
-
-          <div id="chat"></div>
-
-          <div class="chat-input-row">
-            <input id="chatInput" type="text" placeholder="Сообщение в чат…" />
-            <button id="chatSend" type="button">▶</button>
-          </div>
-        </section>
-
-      </div> <!-- /.bottom-split -->
-
+      <div class="side-body">
+        <div id="chat"></div>
+        <div class="chat-input-row">
+          <input class="input" id="chatInput" placeholder="Сообщение в чат..." />
+          <button class="chat-send" id="chatSend">⮞</button>
+        </div>
+      </div>
     </section>
 
   </main>
 </div>
 
-<!-- Socket.io -->
+<!-- ВАЖНО: socket.io с сервера -->
 <script src="/socket.io/socket.io.js"></script>
-
-<!-- Менеджер звуков и логика стола -->
 <script type="module" src="/js/table.js"></script>
-
 </body>
 </html>
