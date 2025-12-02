@@ -123,7 +123,7 @@
     .topbar-table-line {
       display:flex;
       gap:6px;
-      flex-wrap:nowrap;        /* держим в одну строку */
+      flex-wrap:nowrap;
       justify-content:flex-end;
       min-width:0;
       max-width:100%;
@@ -187,15 +187,15 @@
     .btn-join.is-pressed,
     .btn-join:active {
       box-shadow:
-      0 0 22px rgba(53,212,155,1),
-      inset 0 0 18px rgba(53,212,155,0.9);
+        0 0 22px rgba(53,212,155,1),
+        inset 0 0 18px rgba(53,212,155,0.9);
     }
 
     .btn-leave.is-pressed,
     .btn-leave:active {
       box-shadow:
-      0 0 22px rgba(255,65,111,1),
-      inset 0 0 18px rgba(255,65,111,0.95);
+        0 0 22px rgba(255,65,111,1),
+        inset 0 0 18px rgba(255,65,111,0.95);
     }
 
     /* ---------- MAIN LAYOUT ---------- */
@@ -209,7 +209,6 @@
       min-height:0;
     }
 
-    /* портрет / узкие экраны – стол сверху, чат снизу */
     @media (max-width:950px) {
       .main {
         flex-direction:column;
@@ -286,281 +285,6 @@
       display:flex;
       align-items:center;
       justify-content:center;
-    }
-
-    /* ---------- TABLE ---------- */
-
-    .poker-table {
-      width:100%;
-      max-width:820px;
-      aspect-ratio:2.3/1;
-      border-radius:999px;
-      position:relative;
-      background:
-        radial-gradient(circle at 50% -40%,rgba(255,255,255,0.16),transparent 60%),
-        radial-gradient(circle at 50% 130%,rgba(111,122,255,0.24),#050509 70%);
-      box-shadow:0 0 26px rgba(111,122,255,0.6);
-      margin:auto;
-      overflow:visible;
-    }
-
-    .poker-table-inner {
-      position:absolute;
-      inset:14%;
-      border-radius:999px;
-      background:
-        radial-gradient(circle at 50% 0,rgba(255,255,255,0.06),transparent 65%),
-        radial-gradient(circle at 50% 130%,rgba(111,122,255,0.22),#050509 80%);
-      border:1px solid rgba(255,255,255,0.14);
-      box-shadow:inset 0 0 40px rgba(0,0,0,0.9);
-    }
-
-    .table-logo {
-      position:absolute;
-      top:50%; left:50%;
-      transform:translate(-50%,-50%);
-      text-align:center;
-      font-size:14px;
-      letter-spacing:0.26em;
-      color:rgba(245,245,255,0.95);
-      text-transform:uppercase;
-      pointer-events:none;
-      white-space:nowrap;
-      z-index:1;
-    }
-
-    .table-logo span {
-      display:block;
-      font-size:9px;
-      margin-top:3px;
-      letter-spacing:0.3em;
-      color:rgba(192,196,255,0.85);
-    }
-
-    #pot {
-      position:absolute;
-      top:50%; left:50%;
-      transform:translate(-50%,-50%) translateY(-30px);
-      font-size:12px;
-      color:rgba(230,230,255,0.9);
-      text-align:center;
-      display:none;
-      z-index:2;
-    }
-
-    #pot span {
-      font-weight:600;
-      color:#fff;
-    }
-
-    #board {
-      position:absolute;
-      top:50%; left:50%;
-      transform:translate(-50%,-50%) translateY(6px);
-      display:flex;
-      gap:6px;
-      z-index:3;
-    }
-
-    #sidePots {
-      position:absolute;
-      top:50%; left:50%;
-      transform:translate(-50%,-50%) translateY(40px);
-      font-size:11px;
-      color:rgba(200,203,255,0.9);
-      text-align:center;
-      z-index:4; /* всегда поверх карт/логотипа */
-    }
-
-    .card {
-      width:28px;
-      height:38px;
-      border-radius:6px;
-      background:radial-gradient(circle at 0 0,#ffffff,#e4e4f4);
-      border:1px solid rgba(0,0,0,0.08);
-      box-shadow:0 4px 10px rgba(0,0,0,0.6);
-      position:relative;
-      overflow:hidden;
-    }
-
-    .card::after {
-      content:"";
-      position:absolute;
-      inset:0;
-      background:linear-gradient(135deg,rgba(0,0,0,0.1),transparent 60%);
-      mix-blend-mode:multiply;
-    }
-
-    .card-rank {
-      position:absolute;
-      left:4px; top:3px;
-      font-size:11px;
-      font-weight:600;
-    }
-
-    .card-suit {
-      position:absolute;
-      right:4px; bottom:3px;
-      font-size:9px;
-    }
-
-    .card.red { color:#d41245; }
-    .card.black { color:#16162a; }
-
-    .card--highlight {
-      box-shadow:
-        0 0 8px rgba(255,65,111,0.95),
-        0 0 14px rgba(255,65,111,0.75);
-      border:2px solid rgba(255,65,111,0.95) !important;
-    }
-
-    .card.card-back {
-      background:
-        radial-gradient(circle at 20% 0,#1b1b30,#050509 70%);
-      border:1px solid rgba(111,122,255,0.8);
-      box-shadow:0 0 12px rgba(111,122,255,0.85);
-    }
-
-    .card-back-inner {
-      position:absolute;
-      inset:3px;
-      border-radius:5px;
-      border:1px dashed rgba(111,122,255,0.6);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-size:10px;
-      letter-spacing:0.16em;
-      color:rgba(196,200,255,0.95);
-      text-transform:uppercase;
-    }
-
-    /* ---------- SEATS ---------- */
-
-    #players {
-      position:absolute;
-      inset:0;
-      pointer-events:none;
-      z-index:5;
-    }
-
-    .seat {
-      position:absolute;
-      height:32px;
-      padding:4px 10px;
-      border-radius:999px;
-      background:rgba(5,5,15,0.96);
-      border:1px solid rgba(255,255,255,0.14);
-      display:flex;
-      align-items:center;
-      gap:6px;
-      font-size:11px;
-      color:var(--text-muted);
-      pointer-events:auto;
-      transition:0.2s;
-    }
-
-    .seat-avatar {
-      width:18px; height:18px;
-      border-radius:50%;
-      background:radial-gradient(circle at 0 0,rgba(111,122,255,0.45),#050509);
-      border:1px solid rgba(255,255,255,0.3);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-size:9px;
-      font-weight:600;
-      color:#f5f5ff;
-      flex-shrink:0;
-    }
-
-    .seat-text {
-      display:flex;
-      flex-direction:column;
-      gap:0;
-    }
-
-    .seat-name {
-      max-width:60px;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-
-    .seat-stack {
-      font-weight:600;
-      color:#fff;
-    }
-
-    .seat-1 { top:0%;  left:50%; transform:translate(-50%,0); }
-    .seat-2 { top:24%; right:2%; transform:translate(0,-50%); }
-    .seat-3 { bottom:24%; right:2%; transform:translate(0,50%); }
-    .seat-4 { bottom:0%; left:50%; transform:translate(-50%,0); }
-    .seat-5 { bottom:24%; left:2%; transform:translate(0,50%); }
-    .seat-6 { top:24%; left:2%; transform:translate(0,-50%); }
-
-    .seat.active {
-      box-shadow:
-        0 0 18px rgba(111,122,255,0.7),
-        0 0 30px rgba(111,122,255,0.4);
-      border-color:rgba(111,122,255,0.9);
-      color:#e5e7ff;
-    }
-
-    /* Dealer Chip */
-
-    #dealerChip {
-      position: absolute;
-      border-radius: 50%;
-      pointer-events: none;
-      background:
-        radial-gradient(circle at 50% 45%,
-          #151623 0%,
-          #05050b 65%,
-          #000000 100%
-        );
-      border: 1px solid rgba(120,130,200,0.25);
-      box-shadow:
-        0 0 6px rgba(60, 90, 200, 0.30);
-      overflow: visible;
-      z-index:6;
-    }
-
-    #dealerChip::after {
-      content: "";
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      border-radius: 50%;
-      width: 25%;
-      height: 25%;
-      background:
-        radial-gradient(circle at 32% 28%,
-          rgba(210,225,255,0.95) 0 20%,
-          rgba(210,225,255,0.0) 40%
-        ),
-        radial-gradient(circle at 65% 75%,
-          rgba(90,130,255,0.85) 0 16%,
-          rgba(90,130,255,0.0) 45%
-        ),
-        conic-gradient(
-          from -20deg,
-          #11142b 0deg 25deg,
-          #3047c2 25deg 55deg,
-          #080b1e 55deg 90deg,
-          #273ca4 90deg 130deg,
-          #060816 130deg 175deg,
-          #2c41b6 175deg 215deg,
-          #050715 215deg 260deg,
-          #2438a8 260deg 300deg,
-          #0f1330 300deg 360deg
-        );
-      box-shadow:
-        inset 0 0 3px rgba(255,255,255,0.45),
-        inset 0 0 10px rgba(120,150,255,0.8),
-        0 0 5px rgba(70,100,210,0.35);
-      border: 1px solid rgba(150,170,255,0.55);
     }
 
     /* ---------- HERO / ACTIONS ---------- */
@@ -790,21 +514,25 @@
       filter:brightness(1.35);
       transition:0.05s;
     }
+
     .action-fold:active,
     .action-fold.is-pressed {
       box-shadow:0 0 30px rgba(255,65,111,1),
                  inset 0 0 22px rgba(255,65,111,1);
     }
+
     .action-check:active,
     .action-check.is-pressed {
       box-shadow:0 0 26px rgba(255,255,255,0.9),
                  inset 0 0 20px rgba(255,255,255,1);
     }
+
     .action-bet:active,
     .action-bet.is-pressed {
       box-shadow:0 0 38px rgba(111,122,255,1),
                  inset 0 0 24px rgba(111,122,255,1);
     }
+
     .action-allin:active,
     .action-allin.is-pressed {
       box-shadow:0 0 40px rgba(255,215,0,1),
@@ -948,7 +676,7 @@
     /* ===== ЛАНДШАФТНАЯ ОРИЕНТАЦИЯ НА МОБИЛЬНИКЕ ===== */
     @media (max-width:900px) and (orientation:landscape) {
       .main {
-        flex-direction:row;          /* стол слева, чат справа */
+        flex-direction:row;
         align-items:stretch;
       }
       .table-wrap {
@@ -964,7 +692,10 @@
     }
 
   </style>
-  <!-- стили фишки дилера отдельно -->
+
+  <!-- скин стола и слоты дилера -->
+  <link rel="stylesheet" href="/css/table-surface.css">
+  <!-- скин фишки дилера -->
   <link rel="stylesheet" href="/css/dealer-chip.css">
 </head>
 <body>
@@ -1027,6 +758,7 @@
             <div id="sidePots"></div>
           </div>
 
+          <!-- seats -->
           <div id="players">
             <div class="seat seat-1" data-seat="1">
               <div class="seat-avatar">P1</div>
@@ -1072,6 +804,15 @@
             </div>
           </div>
 
+          <!-- невидимые слоты под фишку дилера (обивка стола) -->
+          <div class="dealer-slot dealer-slot-1" data-seat="1"></div>
+          <div class="dealer-slot dealer-slot-2" data-seat="2"></div>
+          <div class="dealer-slot dealer-slot-3" data-seat="3"></div>
+          <div class="dealer-slot dealer-slot-4" data-seat="4"></div>
+          <div class="dealer-slot dealer-slot-5" data-seat="5"></div>
+          <div class="dealer-slot dealer-slot-6" data-seat="6"></div>
+
+          <!-- сама фишка дилера -->
           <div class="dealer-chip" id="dealerChip" style="display:none;"></div>
         </div>
       </div>
