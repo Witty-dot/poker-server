@@ -14,7 +14,8 @@ export const SOUND_EVENTS = {
   CALL: 'CALL',
   BET: 'BET',
   ALLIN: 'ALLIN',
-
+  RAISE: 'RAISE',
+  
   CARD_DEAL: 'CARD_DEAL',
   CARD_BOARD: 'CARD_BOARD',
   DECK_SHUFFLE: 'DECK_SHUFFLE',
@@ -50,7 +51,7 @@ export const SOUND_DEFS = {
   // --- Аctions (игровые) ---
   FOLD: {
     type: 'base',
-    file: 'processed/base/wav/fx_fold_cards.wav',      // скидываем карты
+    file: 'processed/base/wav/fold.wav',      // скидываем карты
     category: 'action',
   },
   CHECK: {
@@ -60,20 +61,24 @@ export const SOUND_DEFS = {
   },
   CALL: {
     type: 'base',
-    file: 'processed/base/wav/fx_call_chips_soft.wav', // мягкий, небольшая кучка фишек
+    file: 'processed/base/wav/call.wav', // мягкий, небольшая кучка фишек
     category: 'action',
   },
   BET: {
     type: 'base',
-    file: 'processed/base/wav/fx_bet_chips_stack.wav', // более тяжёлый стэк на стол
+    file: 'processed/base/wav/bet.wav', // более тяжёлый стэк на стол
+    category: 'action',
+  },
+  RAISE: {
+    type: 'base',
+    file: 'processed/base/wav/raise.wav', // “всё на стол”i
     category: 'action',
   },
   ALLIN: {
     type: 'base',
-    file: 'processed/base/wav/fx_allin_chips_rush.wav', // “всё на стол”
+    file: 'processed/base/wav/raise.wav', // “всё на стол”i
     category: 'action',
   },
-
   // --- Карты/банк ---
   CARD_DEAL: {
     type: 'base',
