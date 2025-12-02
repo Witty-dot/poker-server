@@ -71,7 +71,7 @@ export const SOUND_DEFS = {
   },
   RAISE: {
     type: 'base',
-    file: 'processed/base/wav/raise.wav', // “всё на стол”i
+    file: 'processed/base/wav/raise.wav', // “больше фишек на стол”i
     category: 'action',
   },
   ALLIN: {
