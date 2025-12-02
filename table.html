@@ -122,8 +122,10 @@
     .topbar-table-line {
       display:flex;
       gap:6px;
-      flex-wrap:wrap;
+      flex-wrap:nowrap;           /* чтобы не переносилось на 2 строку */
       justify-content:flex-end;
+      min-width:0;
+      max-width:100%;
     }
 
     .pill {
@@ -133,6 +135,10 @@
       background:rgba(10,10,20,0.85);
       font-size:11px;
       white-space:nowrap;
+      flex:0 1 auto;              /* позволяем ужиматься */
+      max-width:100%;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
 
     .btn {
@@ -177,7 +183,6 @@
       transition:0.06s;
     }
 
-    /* join — зелёный неон */
     .btn-join.is-pressed,
     .btn-join:active {
       box-shadow:
@@ -185,7 +190,6 @@
       inset 0 0 18px rgba(53,212,155,0.9);
     }
 
-    /* leave — розовый неон */
     .btn-leave.is-pressed,
     .btn-leave:active {
       box-shadow:
@@ -295,7 +299,7 @@
         radial-gradient(circle at 50% 130%,rgba(111,122,255,0.24),#050509 70%);
       box-shadow:0 0 26px rgba(111,122,255,0.6);
       margin:auto;
-      overflow:visible; /* стулья не обрезаем */
+      overflow:visible;
     }
 
     .poker-table-inner {
@@ -338,6 +342,7 @@
       color:rgba(230,230,255,0.9);
       text-align:center;
       display:none;
+      z-index:2;
     }
 
     #pot span {
@@ -351,6 +356,7 @@
       transform:translate(-50%,-50%) translateY(6px);
       display:flex;
       gap:6px;
+      z-index:3;
     }
 
     #sidePots {
@@ -360,6 +366,7 @@
       font-size:11px;
       color:rgba(200,203,255,0.9);
       text-align:center;
+      z-index:4; /* гарантированно поверх карт */
     }
 
     .card {
@@ -397,7 +404,6 @@
     .card.red { color:#d41245; }
     .card.black { color:#16162a; }
 
-    /* НЕОНОВАЯ ПОДСВЕТКА КОМБИНАЦИИ (под цвет leave-кнопки) */
     .card--highlight {
       box-shadow:
         0 0 8px rgba(255,65,111,0.95),
@@ -405,7 +411,6 @@
       border:2px solid rgba(255,65,111,0.95) !important;
     }
 
-    /* РУБАШКА КАРТ ПОД MIDNIGHT BLACK */
     .card.card-back {
       background:
         radial-gradient(circle at 20% 0,#1b1b30,#050509 70%);
@@ -501,28 +506,22 @@
     /* ===============================
     Dealer Chip — Neon Midnight Black
     =============================== */
-    /* База фишки — практически как была */
     #dealerChip {
       position: absolute;
       border-radius: 50%;
       pointer-events: none;
-
-    background:
-    radial-gradient(circle at 50% 45%,
-      #151623 0%,
-      #05050b 65%,
-      #000000 100%
-    );
-
+      background:
+        radial-gradient(circle at 50% 45%,
+          #151623 0%,
+          #05050b 65%,
+          #000000 100%
+        );
       border: 1px solid rgba(120,130,200,0.25);
-
       box-shadow:
-      0 0 6px rgba(60, 90, 200, 0.30);
-
+        0 0 6px rgba(60, 90, 200, 0.30);
       overflow: visible;
     }
 
-    /* Фактурный сапфир с гранями */
     #dealerChip::after {
       content: "";
       position: absolute;
@@ -530,46 +529,36 @@
       top: 50%;
       transform: translate(-50%, -50%);
       border-radius: 50%;
-
-    /* ≈ 1/4 от диаметра фишки */
-    width: 25%;
-    height: 25%; 
-
-    /* 1) Фасетный конус с жёсткими гранями */
-    background:
-    /* верхний блик-линза */
-    radial-gradient(circle at 32% 28%,
-      rgba(210,225,255,0.95) 0 20%,
-      rgba(210,225,255,0.0) 40%
-    ),
-    /* нижний мягкий бленд */
-    radial-gradient(circle at 65% 75%,
-      rgba(90,130,255,0.85) 0 16%,
-      rgba(90,130,255,0.0) 45%
-    ),
-    /* сами грани камня */
-    conic-gradient(
-      from -20deg,
-      #11142b 0deg 25deg,
-      #3047c2 25deg 55deg,
-      #080b1e 55deg 90deg,
-      #273ca4 90deg 130deg,
-      #060816 130deg 175deg,
-      #2c41b6 175deg 215deg,
-      #050715 215deg 260deg,
-      #2438a8 260deg 300deg,
-      #0f1330 300deg 360deg
-    );
-
-    /* Линзовый объём и лёгкое свечение */
-    box-shadow:
-      inset 0 0 3px rgba(255,255,255,0.45),
-      inset 0 0 10px rgba(120,150,255,0.8),
-      0 0 5px rgba(70,100,210,0.35);
-
-    /* Оправка */
-    border: 1px solid rgba(150,170,255,0.55);
+      width: 25%;
+      height: 25%;
+      background:
+        radial-gradient(circle at 32% 28%,
+          rgba(210,225,255,0.95) 0 20%,
+          rgba(210,225,255,0.0) 40%
+        ),
+        radial-gradient(circle at 65% 75%,
+          rgba(90,130,255,0.85) 0 16%,
+          rgba(90,130,255,0.0) 45%
+        ),
+        conic-gradient(
+          from -20deg,
+          #11142b 0deg 25deg,
+          #3047c2 25deg 55deg,
+          #080b1e 55deg 90deg,
+          #273ca4 90deg 130deg,
+          #060816 130deg 175deg,
+          #2c41b6 175deg 215deg,
+          #050715 215deg 260deg,
+          #2438a8 260deg 300deg,
+          #0f1330 300deg 360deg
+        );
+      box-shadow:
+        inset 0 0 3px rgba(255,255,255,0.45),
+        inset 0 0 10px rgba(120,150,255,0.8),
+        0 0 5px rgba(70,100,210,0.35);
+      border: 1px solid rgba(150,170,255,0.55);
     }
+
     /* ---------- HERO / ACTIONS ---------- */
 
     .bottom-panel {
@@ -945,6 +934,10 @@
       }
       .side-panel {
         flex:0 0 220px;
+      }
+      .pill {
+        font-size:10px;
+        padding-inline:8px;
       }
     }
 
