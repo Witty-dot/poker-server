@@ -251,6 +251,7 @@
   width: 2px;
   height: 2px;
   pointer-events: none;
+  z-index: 50;
   /* для отладки можно включить:*/
   background: rgba(255,0,0,0.7);
   border-radius: 50%;
@@ -265,7 +266,7 @@
 /* P1 – верхний стул, слот на верхней обивке по центру */
 .dealer-slot-1 {
   top: 7%;              /* ближе к бортику, не к сукну */
-  left: 50%;
+  left: 70%;
   transform: translate(-50%, -50%);
 }
 
@@ -286,7 +287,7 @@
 /* P4 – нижний стул, слот на нижней обивке по центру */
 .dealer-slot-4 {
   bottom: 7%;
-  left: 50%;
+  left: 30%;
   transform: translate(-50%, 50%);
 }
 
