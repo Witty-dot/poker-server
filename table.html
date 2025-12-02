@@ -521,32 +521,30 @@
 
       overflow: visible;
     }
-
-    /* Тёмное фасетированное "дно" сапфира */
     /* Тёмное гранёное "дно" сапфира */
-    #dealerChip::before {
-      content: "";
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      border-radius: 50%;
+#dealerChip::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
 
-    /* дно ~24–25% от фишки */
-      width: 25%;
-      height: 25%;
+  /* дно ~24–25% от фишки */
+  width: 25%;
+  height: 25%;
 
-    /* резкие тёмные грани */
-      background:
+  /* резкие тёмные грани */
+  background:
     /* лёгкое затемнение краёв, чтобы был "колодец" */
-      radial-gradient(circle at 50% 50%,
+    radial-gradient(circle at 50% 50%,
       rgba(0, 0, 0, 0.0) 0%,
       rgba(0, 0, 0, 0.0) 35%,
       rgba(0, 0, 0, 0.75) 85%,
       rgba(0, 0, 0, 1) 100%
     ),
     /* сами фасеты — максимум контраста */
-      conic-gradient(
+    conic-gradient(
       from 10deg,
       #7fa4ff 0deg   20deg,
       #040614 20deg  40deg,
@@ -568,121 +566,42 @@
       #050716 340deg 360deg
     );
 
-      box-shadow:
-      inset 0 0 8px rgba(0, 0, 0, 0.95),  /* сильная внутренняя тень */
-      inset 0 0 3px rgba(0, 0, 0, 0.7);
-    }
+  box-shadow:
+    inset 0 0 8px rgba(0, 0, 0, 0.95),  /* сильная внутренняя тень */
+    inset 0 0 3px rgba(0, 0, 0, 0.7);
+}
 
-    /* Верхняя стеклянная линза */
-    #dealerChip::after {
-      content: "";
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      border-radius: 50%;
-    /* Тёмное гранёное "дно" сапфира */    #dealerChip::before {
-      content: "";
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      border-radius: 50%;
+/* Верхняя стеклянная линза */
+#dealerChip::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
 
-    /* дно ~24–25% от фишки */
-      width: 25%;
-      height: 25%;
+  /* линза чуть меньше дна, чтобы фасеты читались по краю */
+  width: 18%;
+  height: 18%;
 
-    /* резкие тёмные грани */
-      background:
-    /* лёгкое затемнение краёв, чтобы был "колодец" */
-      radial-gradient(circle at 50% 50%,
-      rgba(0, 0, 0, 0.0) 0%,
-      rgba(0, 0, 0, 0.0) 35%,
-      rgba(0, 0, 0, 0.75) 85%,
-      rgba(0, 0, 0, 1) 100%
-    ),
-    /* сами фасеты — максимум контраста */
-      conic-gradient(
-      from 10deg,
-      #7fa4ff 0deg   20deg,
-      #040614 20deg  40deg,
-      #9ab6ff 40deg  60deg,
-      #050716 60deg  80deg,
-      #88a8ff 80deg  100deg,
-      #050716 100deg 120deg,
-      #8eaeff 120deg 140deg,
-      #050716 140deg 160deg,
-      #7fa4ff 160deg 180deg,
-      #050716 180deg 200deg,
-      #9ab6ff 200deg 220deg,
-      #050716 220deg 240deg,
-      #88a8ff 240deg 260deg,
-      #050716 260deg 280deg,
-      #8eaeff 280deg 300deg,
-      #050716 300deg 320deg,
-      #7fa4ff 320deg 340deg,
-      #050716 340deg 360deg
-    );
-
-      box-shadow:
-      inset 0 0 8px rgba(0, 0, 0, 0.95),  /* сильная внутренняя тень */
-      inset 0 0 3px rgba(0, 0, 0, 0.7);
-    }
-
-    /* Верхняя стеклянная линза */
-    #dealerChip::after {
-      content: "";
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      border-radius: 50%;
-
-    /* линза чуть меньше дна, чтобы фасеты читались по краю */
-      width: 18%;
-      height: 18%;
-
-      background:
+  background:
     /* маленький блик сверху-слева */
-      radial-gradient(circle at 35% 30%,
+    radial-gradient(circle at 35% 30%,
       rgba(230, 240, 255, 0.95) 0%,
       rgba(180, 210, 255, 0.6) 25%,
       rgba(0, 0, 0, 0) 55%
     ),
     /* общий синий объём */
-      radial-gradient(circle at 50% 60%,
+    radial-gradient(circle at 50% 60%,
       rgba(90, 140, 255, 0.9) 0%,
       rgba(60, 100, 230, 0.7) 45%,
       rgba(20, 30, 80, 0.05) 100%
     );
 
-      box-shadow:
-      inset 0 0 4px rgba(255,255,255,0.5),
-      0 0 6px rgba(60, 100, 230, 0.7);
-    }
-    /* линза чуть меньше дна, чтобы фасеты читались по краю */
-      width: 25%;
-      height: 25%;
-
-      background:
-    /* маленький блик сверху-слева */
-      radial-gradient(circle at 35% 30%,
-      rgba(230, 240, 255, 0.95) 0%,
-      rgba(180, 210, 255, 0.6) 25%,
-      rgba(0, 0, 0, 0) 55%
-    ),
-    /* общий синий объём */
-      radial-gradient(circle at 50% 60%,
-      rgba(90, 140, 255, 0.9) 0%,
-      rgba(60, 100, 230, 0.7) 45%,
-      rgba(20, 30, 80, 0.05) 100%
-    );
-
-      box-shadow:
-      inset 0 0 4px rgba(255,255,255,0.5),
-      0 0 6px rgba(60, 100, 230, 0.7);
-    }
+  box-shadow:
+    inset 0 0 4px rgba(255,255,255,0.5),
+    0 0 6px rgba(60, 100, 230, 0.7);
+}
     /* ---------- HERO / ACTIONS ---------- */
 
     .bottom-panel {
