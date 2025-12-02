@@ -55,7 +55,7 @@ export const SOUND_DEFS = {
   },
   CHECK: {
     type: 'base',
-    file: 'processed/base/wav/fx_check_doubletap.wav', // двойной стук по столу
+    file: 'processed/base/wav/check.wav', // двойной стук по столу
     category: 'action',
   },
   CALL: {
@@ -77,12 +77,12 @@ export const SOUND_DEFS = {
   // --- Карты/банк ---
   CARD_DEAL: {
     type: 'base',
-    file: 'processed/base/wav/fx_card_deal.wav',       // раздача карманок
+    file: 'processed/base/wav/card_deal.wav',       // раздача карманок
     category: 'action',
   },
   CARD_BOARD: {
     type: 'base',
-    file: 'processed/base/wav/fx_card_board.wav',      // выкладывание на борд
+    file: 'processed/base/wav/card_board.wav',      // выкладывание на борд
     category: 'action',
   },
   DECK_SHUFFLE: {
