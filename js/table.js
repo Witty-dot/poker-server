@@ -68,6 +68,7 @@ document.addEventListener('pointerdown', warmupSounds, { once: true });
 
 const seatEls          = Array.from(document.querySelectorAll('.seat'));
 const dealerChipEl     = document.getElementById('dealerChip');
+const dealerSlotEls    = Array.from(document.querySelectorAll('.dealer-slot'));
 
 const tableEl          = document.getElementById('table');
 
@@ -222,62 +223,43 @@ function positionDealerChip(state) {
   const players = state.players || [];
   const btnIdx = players.findIndex(p => p.id === state.buttonPlayerId);
 
+  // Нет активного баттона → фишку прячем
   if (btnIdx < 0 || btnIdx >= seatEls.length) {
     dealerChipEl.style.display = 'none';
     return;
   }
 
   const seatEl = seatEls[btnIdx];
-  if (!seatEl) {
+
+  // Ищем слот тем же индексом или по data-seat
+  let slotEl = dealerSlotEls[btnIdx] || null;
+  if (!slotEl && seatEl && seatEl.dataset.seat) {
+    slotEl = tableEl.querySelector(
+      `.dealer-slot[data-seat="${seatEl.dataset.seat}"]`
+    );
+  }
+
+  if (!seatEl || !slotEl) {
     dealerChipEl.style.display = 'none';
     return;
   }
 
-  const seatRect  = seatEl.getBoundingClientRect();
+  const slotRect  = slotEl.getBoundingClientRect();
   const tableRect = tableEl.getBoundingClientRect();
 
-  const tableCx = tableRect.left + tableRect.width  / 2;
-  const tableCy = tableRect.top  + tableRect.height / 2;
-  const seatCx  = seatRect.left + seatRect.width   / 2;
-  const seatCy  = seatRect.top  + seatRect.height  / 2;
-
-  // --- размер фишки пропорционален ширине стола ---
-  const tableWidth = tableRect.width || 600;
-  const chipSize = Math.max(18, Math.min(26, tableWidth * 0.035)); // ~3.5% ширины
+  // Размер фишки подгоняем под слот
+  const chipSize = Math.min(slotRect.width, slotRect.height);
   dealerChipEl.style.width  = chipSize + 'px';
   dealerChipEl.style.height = chipSize + 'px';
 
-  const chipRadius = chipSize / 2;
+  // Центруем фишку относительно слота
+  const leftInsideTable =
+    slotRect.left - tableRect.left + (slotRect.width  - chipSize) / 2;
+  const topInsideTable  =
+    slotRect.top  - tableRect.top  + (slotRect.height - chipSize) / 2;
 
-  // Радиальный вектор: от центра стола к сиденью (наружу)
-  let vx = seatCx - tableCx;
-  let vy = seatCy - tableCy;
-  const len = Math.sqrt(vx * vx + vy * vy) || 1;
-  vx /= len;
-  vy /= len;
-
-  // Тангенциальный вектор по обивке по часовой:
-  let tx = -vy;
-  let ty = vx;
-
-  const tlen = Math.sqrt(tx * tx + ty * ty) || 1;
-  tx /= tlen;
-  ty /= tlen;
-
-  const halfAlongT =
-    Math.abs(tx) * (seatRect.width  / 2) +
-    Math.abs(ty) * (seatRect.height / 2);
-
-  const marginBetween = 6;
-  const outwardMargin = 2;
-
-  const distAlongT = halfAlongT + chipRadius + marginBetween;
-
-  const chipCenterX = seatCx + tx * distAlongT + vx * outwardMargin;
-  const chipCenterY = seatCy + ty * distAlongT + vy * outwardMargin;
-
-  dealerChipEl.style.left = (chipCenterX - tableRect.left - chipRadius) + 'px';
-  dealerChipEl.style.top  = (chipCenterY - tableRect.top  - chipRadius) + 'px';
+  dealerChipEl.style.left = leftInsideTable + 'px';
+  dealerChipEl.style.top  = topInsideTable  + 'px';
   dealerChipEl.style.display = 'block';
 }
 
