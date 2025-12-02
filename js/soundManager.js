@@ -54,12 +54,12 @@ export const SOUND_DEFS = {
 
   CARD_DEAL: {
     type: 'base',
-    file: 'processed/base/wav/mixkit-poker-card-flick-2002.wav',
+    file: 'processed/base/wav/card_deal.wav',
     category: 'action',
   },
   CARD_BOARD: {
     type: 'base',
-    file: 'processed/base/wav/mixkit-poker-card-placement-2001.wav',
+    file: 'processed/base/wav/card_board.wav',
     category: 'action',
   },
   DECK_SHUFFLE: {
