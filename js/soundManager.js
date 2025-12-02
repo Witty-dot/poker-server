@@ -25,6 +25,7 @@ export const SOUND_EVENTS = {
 };
 
 export const SOUND_DEFS = {
+  // --- UI ---
   UI_CLICK_PRIMARY: {
     type: 'base',
     file: 'processed/base/wav/mixkit-cool-interface-click-tone-2568.wav',
@@ -46,33 +47,56 @@ export const SOUND_DEFS = {
     category: 'ui',
   },
 
-  FOLD:   { type: 'composite', name: 'fold',   category: 'action' },
-  CHECK:  { type: 'composite', name: 'check',  category: 'action' },
-  CALL:   { type: 'composite', name: 'call',   category: 'action' },
-  BET:    { type: 'composite', name: 'bet',    category: 'action' },
-  ALLIN:  { type: 'composite', name: 'allin',  category: 'action' },
+  // --- Аctions (игровые) ---
+  FOLD: {
+    type: 'base',
+    file: 'processed/base/wav/fx_fold_cards.wav',      // скидываем карты
+    category: 'action',
+  },
+  CHECK: {
+    type: 'base',
+    file: 'processed/base/wav/fx_check_doubletap.wav', // двойной стук по столу
+    category: 'action',
+  },
+  CALL: {
+    type: 'base',
+    file: 'processed/base/wav/fx_call_chips_soft.wav', // мягкий, небольшая кучка фишек
+    category: 'action',
+  },
+  BET: {
+    type: 'base',
+    file: 'processed/base/wav/fx_bet_chips_stack.wav', // более тяжёлый стэк на стол
+    category: 'action',
+  },
+  ALLIN: {
+    type: 'base',
+    file: 'processed/base/wav/fx_allin_chips_rush.wav', // “всё на стол”
+    category: 'action',
+  },
 
+  // --- Карты/банк ---
   CARD_DEAL: {
     type: 'base',
-    file: 'processed/base/wav/card_deal.wav',
+    file: 'processed/base/wav/fx_card_deal.wav',       // раздача карманок
     category: 'action',
   },
   CARD_BOARD: {
     type: 'base',
-    file: 'processed/base/wav/card_board.wav',
+    file: 'processed/base/wav/fx_card_board.wav',      // выкладывание на борд
     category: 'action',
   },
   DECK_SHUFFLE: {
     type: 'base',
-    file: 'processed/base/wav/mixkit-thin-metal-card-deck-shuffle-3175.wav',
+    file: 'processed/base/wav/fx_deck_shuffle.wav',    // перемешивание перед раздачей
     category: 'ambient',
   },
   POT_WIN: {
     type: 'base',
-    file: 'processed/base/wav/mixkit-clinking-coins-1993.wav',
+    file: 'processed/base/wav/fx_pot_move_chips.wav',  // передвигаем стэк к игроку
     category: 'action',
   },
 
+  // --- Таймер ---
   TIMER_TICK: {
     type: 'base',
     file: 'processed/base/wav/mixkit-tick-tock-clock-timer-1045.wav',
