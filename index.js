@@ -497,7 +497,7 @@ function createTableEngine(io, config) {
     if (table.currentTurnIndex == null) return;
 
     const p = table.players[table.currentTurnIndex];
-    if (!p || !p.inHand || p.hasFolded || p.isPaused) return;
+    if (!p || !p.inHand || p.hasFolded) return; // пауза НЕ блокирует таймер в текущей раздаче
 
     table.turnDeadline = Date.now() + TURN_TIMEOUT_MS;
 
@@ -506,7 +506,7 @@ function createTableEngine(io, config) {
     }, TURN_TIMEOUT_MS);
   }
 
-  function handleTurnTimeout() {
+    function handleTurnTimeout() {
     turnTimer = null;
 
     if (!['preflop', 'flop', 'turn', 'river'].includes(table.stage)) return;
@@ -522,7 +522,7 @@ function createTableEngine(io, config) {
     const someoneBet = others.some(pl => pl.betThisStreet > 0 && !pl.hasFolded);
 
     if (needToCall && someoneBet) {
-      // авто-фолд
+      // авто-фолд + пауза
       p.hasFolded = true;
       p.inHand = false;
       p.isPaused = true;
@@ -536,6 +536,26 @@ function createTableEngine(io, config) {
         broadcastGameState();
         return;
       }
+
+      advanceTurn();
+      pushSnapshot('after auto-fold timeout', table);
+      broadcastGameState();
+      scheduleTurnTimer();
+    } else {
+      // авто-чек + пауза (игрок доигрывает раздачу, но в следующих не участвует)
+      const prevClicked = p.hasClickedThisHand;
+
+      handlePlayerAction(p.id, { type: 'call', isAuto: true });
+
+      p.hasClickedThisHand = prevClicked;
+      p.isPaused = true; // <-- ВАЖНО: ставим на паузу для следующих раздач
+      table.lastLogMessage = `Игрок ${p.name} не сделал ход, авто-check и переход в паузу`;
+
+      pushSnapshot('after auto-check timeout', table);
+      broadcastGameState();
+      scheduleTurnTimer();
+    }
+  }
 
       advanceTurn();
       pushSnapshot('after auto-fold timeout', table);
@@ -657,7 +677,7 @@ function createTableEngine(io, config) {
     }
 
     console.log(logPrefix(), 'Hand started. StreetPot:', table.streetPot, 'Stage:', table.stage);
-    playSound('start_hand');
+    playSound('card_deal');
     broadcastGameState();
     scheduleTurnTimer();
   }
@@ -670,7 +690,7 @@ function createTableEngine(io, config) {
       const card = dealCards(table.deck, 1)[0];
       if (card) table.communityCards.push(card);
     }
-    playSound('deal_board');
+    playSound('card_board');
   }
 
   function startNewStreet(newStage) {
@@ -694,7 +714,8 @@ function createTableEngine(io, config) {
     for (let i = 0; i < len; i++) {
       const idx = (start + i) % len;
       const p = table.players[idx];
-      if (p.inHand && !p.hasFolded && !p.isPaused && p.stack > 0) {
+      // В текущей раздаче пауза НЕ выкидывает с улицы, игрок идёт по авто-чеку/фолду
+      if (p.inHand && !p.hasFolded && p.stack > 0) {
         table.currentTurnIndex = idx;
         break;
       }
@@ -1123,7 +1144,8 @@ function createTableEngine(io, config) {
     for (let i = 1; i <= len; i++) {
       const idx = (table.currentTurnIndex + i) % len;
       const p = table.players[idx];
-      if (p.inHand && !p.hasFolded && !p.isPaused && p.stack > 0) {
+      // Пауза не исключает из текущей раздачи — ход всё равно "приходит" к нему
+      if (p.inHand && !p.hasFolded && p.stack > 0) {
         table.currentTurnIndex = idx;
         return;
       }
@@ -1145,7 +1167,8 @@ function createTableEngine(io, config) {
 
     const player = table.players[idx];
 
-    if (!player.inHand || player.hasFolded || player.isPaused) return;
+    // Пауза блокирует только РУЧНЫЕ действия, авто-действия (таймаут) разрешаем
+    if (!player.inHand || player.hasFolded || (player.isPaused && !isAuto)) return;
     if (table.stage === 'waiting' || table.stage === 'showdown') return;
 
     if (table.currentTurnIndex === null || table.players[table.currentTurnIndex].id !== playerId) {
@@ -1183,7 +1206,7 @@ function createTableEngine(io, config) {
       if (toCall <= 0) {
         player.hasActedThisStreet = true;
         table.lastLogMessage = `Игрок ${player.name} чек`;
-        playSound('call');
+        playSound('check');
         autoAdvanceIfReady();
         if (table.stage !== 'showdown' && !isBettingRoundComplete()) {
           advanceTurn();
@@ -1334,7 +1357,7 @@ function createTableEngine(io, config) {
           table.lastLogMessage = `Игрок ${player.name} рейз до ${player.betThisStreet}`;
         }
 
-        playSound('bet');
+        playSound('raise');
 
         for (const p of table.players) {
           if (p.id !== player.id && p.inHand && !p.hasFolded && !p.isPaused && p.stack > 0) {
