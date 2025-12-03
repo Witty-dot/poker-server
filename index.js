@@ -557,25 +557,6 @@ function createTableEngine(io, config) {
     }
   }
 
-      advanceTurn();
-      pushSnapshot('after auto-fold timeout', table);
-      broadcastGameState();
-      scheduleTurnTimer();
-    } else {
-      // авто-чек
-      const prevClicked = p.hasClickedThisHand;
-
-      handlePlayerAction(p.id, { type: 'call', isAuto: true });
-
-      p.hasClickedThisHand = prevClicked;
-      table.lastLogMessage = `Игрок ${p.name} не сделал ход, авто-check`;
-
-      pushSnapshot('after auto-check timeout', table);
-      broadcastGameState();
-      scheduleTurnTimer();
-    }
-  }
-
   // ================= Раздача =================
 
   function nextActiveIndexFrom(baseIndex) {
