@@ -818,8 +818,9 @@ function createTableEngine(io, config) {
       table.players.forEach(p => { p.totalBet = 0; });
       const line = `Общий банк ${totalPotFromBets} фишек сгорел: к моменту шоудауна нет активных игроков.`;
       table.lastLogMessage = 'Банк сгорел (нет активных игроков)';
-      table.potDetails.push(line);
-      table.dealerDetails = table.potDetails.join('\n');
+
+      // Подробный текст только в dealerDetails / чате
+      table.dealerDetails = line
       return;
     }
 
@@ -842,11 +843,9 @@ function createTableEngine(io, config) {
       table.streetPot = 0;
       table.lastLogMessage = `Банк ${totalPot} фишек без вскрытия забрал игрок ${winner.name}`;
 
-      table.potDetails.push(
-        `Общий банк: ${totalPot} фишек. Все остальные игроки сбросили карты, ` +
-        `игрок ${winner.name} забирает весь банк без вскрытия.`
-      );
-      table.dealerDetails = table.potDetails.join('\n');
+      const line = `Общий банк: ${totalPot} фишек. Все остальные игроки сбросили карты, ` + 
+        `игрок ${winner.name} забирает весь банк без вскрытия.`;
+      table.dealerDetails = line;
       playSound('win');
       return;
     }
