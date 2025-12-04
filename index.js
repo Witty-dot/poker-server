@@ -342,13 +342,20 @@ function createTableEngine(io, config) {
 
   const TURN_TIMEOUT_MS = 30000;
   const NEXT_HAND_DELAY_MS = 6000;
-
+  // Длительности “анимаций/звуков” (можешь подстроить)
+  const CARD_DEAL_DELAY_MS   = 2000; // ~1.88 c на раздачу карманок
+  const FLOP_REVEAL_DELAY_MS = 2000; // звук флопа ~2 c
+  const TURN_RIVER_DELAY_MS  = 1000; // тёрн/ривер ~1 c
+  const ROUND_END_DELAY_MS   = 1000; // <<< Пауза после последнего действия раунда
+  
   let debugLog = [];
   let chatLog = [];
 
   let turnTimer = null;
   let nextHandTimer = null;
-
+  let streetRevealTimer = null; // новый таймер “задержки улицы”
+  let roundEndTimer = null;
+  
   let table = {
     players: [],          // { id, name, stack, hand, inHand, hasFolded, betThisStreet, hasActedThisStreet, message, isPaused, hasClickedThisHand, totalBet }
     deck: [],
@@ -475,6 +482,26 @@ function createTableEngine(io, config) {
 
   // ================= Таймеры =================
 
+  function clearStreetRevealTimer() {
+    if (streetRevealTimer) {
+      clearTimeout(streetRevealTimer);
+      streetRevealTimer = null;
+    }
+  }
+
+  function clearRoundEndTimer() {
+    if (roundEndTimer) {
+      clearTimeout(roundEndTimer);
+      roundEndTimer = null;
+    }
+  }
+  function clearStreetRevealTimer() {
+    if (streetRevealTimer) {
+      clearTimeout(streetRevealTimer);
+      streetRevealTimer = null;
+    }
+  }
+  
   function clearTurnTimer() {
     if (turnTimer) {
       clearTimeout(turnTimer);
@@ -634,12 +661,12 @@ function createTableEngine(io, config) {
     if (bbIndex != null) takeBlind(bbIndex, table.bigBlind);
 
     // раздача карманных
+    playSound('card_deal');
     for (let r = 0; r < 2; r++) {
       for (const idx of activeSeats) {
         const p = table.players[idx];
         const card = dealCards(table.deck, 1)[0];
-        if (card) {playSound('card_deal');
-                   p.hand.push(card);}
+        if (card) p.hand.push(card);
       }
     }
 
@@ -789,7 +816,9 @@ function createTableEngine(io, config) {
   function goToShowdown() {
     clearTurnTimer();
     clearNextHandTimer();
-
+    clearStreetRevealTimer();
+    clearRoundEndTimer();
+    
     collapseStreetPot();
     table.stage = 'showdown';
     table.currentTurnIndex = null;
@@ -1166,7 +1195,6 @@ function createTableEngine(io, config) {
       player.inHand = false;
       player.hasActedThisStreet = true;
       table.lastLogMessage = `Игрок ${player.name} сделал фолд`;
-      playSound('fold');
 
       const actives = activePlayers();
       if (actives.length <= 1) {
@@ -1186,7 +1214,6 @@ function createTableEngine(io, config) {
       if (toCall <= 0) {
         player.hasActedThisStreet = true;
         table.lastLogMessage = `Игрок ${player.name} чек`;
-        playSound('check');
         autoAdvanceIfReady();
         if (table.stage !== 'showdown' && !isBettingRoundComplete()) {
           advanceTurn();
@@ -1214,8 +1241,7 @@ function createTableEngine(io, config) {
       } else {
         table.lastLogMessage = `Игрок ${player.name} колл ${pay}`;
       }
-
-      playSound('call');
+      
       autoAdvanceIfReady();
       if (table.stage !== 'showdown' && !isBettingRoundComplete()) {
         advanceTurn();
@@ -1256,8 +1282,7 @@ function createTableEngine(io, config) {
       } else {
         table.lastLogMessage = `Игрок ${player.name} олл-ин на ${player.betThisStreet} фишек (меньше текущей ставки)`;
       }
-
-      playSound('allin');
+      
       autoAdvanceIfReady();
       if (table.stage !== 'showdown' && !isBettingRoundComplete()) {
         advanceTurn();
@@ -1292,7 +1317,6 @@ function createTableEngine(io, config) {
         table.minRaise = 10;
         player.hasActedThisStreet = true;
         table.lastLogMessage = `Игрок ${player.name} бет ${toBet}`;
-        playSound('bet');
 
         for (const p of table.players) {
           if (p.id !== player.id && p.inHand && !p.hasFolded && !p.isPaused && p.stack > 0) {
@@ -1336,8 +1360,6 @@ function createTableEngine(io, config) {
         } else {
           table.lastLogMessage = `Игрок ${player.name} рейз до ${player.betThisStreet}`;
         }
-
-        playSound('raise');
 
         for (const p of table.players) {
           if (p.id !== player.id && p.inHand && !p.hasFolded && !p.isPaused && p.stack > 0) {
