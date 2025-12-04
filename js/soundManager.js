@@ -176,8 +176,8 @@ export class SoundManager {
     return this._clamp01(this.masterVolume * catVol);
   }
 
-  _resolveUrl(eventName) {
-    const def = SOUND_DEFS[eventName];
+  _resolveUrl(eventKey) {
+    const def = SOUND_DEFS[eventKey];
     if (!def) return null;
 
     if (def.type === 'base') {
