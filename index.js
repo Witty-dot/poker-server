@@ -482,13 +482,6 @@ function createTableEngine(io, config) {
 
   // ================= Таймеры =================
 
-  function clearStreetRevealTimer() {
-    if (streetRevealTimer) {
-      clearTimeout(streetRevealTimer);
-      streetRevealTimer = null;
-    }
-  }
-
   function clearRoundEndTimer() {
     if (roundEndTimer) {
       clearTimeout(roundEndTimer);
@@ -697,8 +690,15 @@ function createTableEngine(io, config) {
     }
 
     console.log(logPrefix(), 'Hand started. StreetPot:', table.streetPot, 'Stage:', table.stage);  
+    
+    // === Пауза на звук раздачи карманных ===
+    clearStreetRevealTimer();
+    streetRevealTimer = setTimeout(() => {
+    streetRevealTimer = null;
+    table.currentTurnIndex = utgIndex;
     broadcastGameState();
     scheduleTurnTimer();
+    }, CARD_DEAL_DELAY_MS);
   }
 
   function dealCommunity(count) {
@@ -712,6 +712,29 @@ function createTableEngine(io, config) {
     }
   }
 
+  function revealStreetWithDelay(cardCount, newStage) {
+  clearTurnTimer();
+  clearStreetRevealTimer();
+
+  // выкладываем карты и играем звук
+  dealCommunity(cardCount);
+
+  // логически уже новая улица (можно сразу показать "Флоп"/"Тёрн"/"Ривер")
+  table.stage = newStage;
+  broadcastGameState();
+
+  const delay =
+    newStage === 'flop'
+      ? FLOP_REVEAL_DELAY_MS
+      : TURN_RIVER_DELAY_MS;
+
+  streetRevealTimer = setTimeout(() => {
+    streetRevealTimer = null;
+    // здесь сбросим ставки, выберем первого говорящего и запустим таймер
+    startNewStreet(newStage);
+    }, delay);
+  } 
+  
   function startNewStreet(newStage) {
     table.stage = newStage;
     table.currentBet = 0;
@@ -1026,8 +1049,8 @@ function createTableEngine(io, config) {
     if (Object.keys(perPlayerWin).length > 0) playSound('win');
   }
 
-  // ================= Авто-переход улиц =================
-
+  // ================= Авто-переход улиц ==================
+  
   function autoAdvanceIfReady() {
     const stages = ['preflop', 'flop', 'turn', 'river'];
     if (!stages.includes(table.stage)) return;
@@ -1061,14 +1084,11 @@ function createTableEngine(io, config) {
     collapseStreetPot();
 
     if (table.stage === 'preflop') {
-      dealCommunity(3);
-      startNewStreet('flop');
+      revealStreetWithDelay(3, 'flop');
     } else if (table.stage === 'flop') {
-      dealCommunity(1);
-      startNewStreet('turn');
+      revealStreetWithDelay(1, 'turn');
     } else if (table.stage === 'turn') {
-      dealCommunity(1);
-      startNewStreet('river');
+      revealStreetWithDelay(1, 'river');
     } else if (table.stage === 'river') {
       goToShowdown();
     }
