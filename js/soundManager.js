@@ -18,6 +18,7 @@ export const SOUND_EVENTS = {
   
   CARD_DEAL: 'CARD_DEAL',
   CARD_BOARD: 'CARD_BOARD',
+  CARD_TURN_RIVER: 'CARD_TURN_RIVER',
   DECK_SHUFFLE: 'DECK_SHUFFLE',
   POT_WIN: 'POT_WIN',
 
@@ -89,6 +90,11 @@ export const SOUND_DEFS = {
     type: 'base',
     file: 'processed/base/wav/card_board.wav',      // выкладывание на борд
     category: 'action',
+  },
+  CARD_TURN_RIVER: {
+  type: 'base',
+  file: 'processed/base/wav/card_turn_river.wav', // реальное имя файла
+  category: 'action',
   },
   DECK_SHUFFLE: {
     type: 'base',
