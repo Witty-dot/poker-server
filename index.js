@@ -676,7 +676,7 @@ function createTableEngine(io, config) {
 
     table.currentBet = table.bigBlind;
     table.minRaise = 10;
-    table.currentTurnIndex = utgIndex;
+    table.currentTurnIndex = null;
 
     const sbPlayer = sbIndex != null ? table.players[sbIndex] : null;
     const bbPlayer = bbIndex != null ? table.players[bbIndex] : null;
@@ -721,6 +721,7 @@ function createTableEngine(io, config) {
 
   // логически уже новая улица (можно сразу показать "Флоп"/"Тёрн"/"Ривер")
   table.stage = newStage;
+  table.currentTurnIndex = null;
   broadcastGameState();
 
   const delay =
