@@ -435,8 +435,6 @@ function renderHero(state, comboKeys, prevState) {
 
   if (justDealtPreflop) {
     heroFlipInProgress = true;
-    // звук сдачи карманки
-    sound.play(SOUND_EVENTS.CARD_DEAL);
   }
 
   heroCardsSlots.forEach((slot, idx) => {
@@ -624,26 +622,23 @@ socket.on('sound', (payload) => {
 // =====================================================================
 
 function wireActionButtons() {
-  // FOLD — свой звук
+  // FOLD — только экшен, звук прилетит от сервера
   if (foldButton) {
     foldButton.addEventListener('click', () => {
-      sound.play(SOUND_EVENTS.FOLD);
       socket.emit('action', { type: 'fold' });
     });
   }
 
-  // CHECK / CALL — мягкий отдельный звук
+  // CHECK / CALL — экшен, звук CHECK/CALL даёт сервер
   if (checkCallButton) {
     checkCallButton.addEventListener('click', () => {
-      sound.play(SOUND_EVENTS.CALL);   // можно заменить на CHECK, если больше нравится
       socket.emit('action', { type: 'call' });
     });
   }
 
-  // BET / RAISE — звук ставки
+  // BET / RAISE — экшен, сервер решает что это за звук (bet/raise/olllin)
   if (betRaiseButton) {
     betRaiseButton.addEventListener('click', () => {
-      sound.play(SOUND_EVENTS.BET);
       let amount = 0;
       if (betAmountEl) {
         const raw = parseInt(betAmountEl.value, 10);
@@ -655,15 +650,14 @@ function wireActionButtons() {
     });
   }
 
-  // ALL-IN — отдельный напряжённый звук
+  // ALL-IN — только экшен, звук ALLIN прилетит от сервера
   if (allInButton) {
     allInButton.addEventListener('click', () => {
-      sound.play(SOUND_EVENTS.ALLIN);
       socket.emit('action', { type: 'allin' });
     });
   }
 
-  // Слайдер ставки — без звука, чтобы не бесил при перетаскивании
+  // Слайдер ставки — без звука
   if (betRangeEl && betAmountEl) {
     betRangeEl.addEventListener('input', () => {
       const percent = parseInt(betRangeEl.value, 10) || 0;
@@ -698,12 +692,13 @@ function wireActionButtons() {
     });
   }
 
-  // Пресеты ставки — другой UI-клик
+  // Пресеты ставки — оставляем UI-клик, но убираем игровой ALL-IN звук
   if (presetButtons.length && betAmountEl) {
     presetButtons.forEach(btn => {
       btn.addEventListener('click', () => {
         if (!lastState) return;
 
+        // Локальный лёгкий UI-клик пусть остаётся
         sound.play(SOUND_EVENTS.UI_CLICK_SECONDARY);
 
         const preset = btn.getAttribute('data-bet-preset');
@@ -717,7 +712,8 @@ function wireActionButtons() {
 
         if (preset === 'max') {
           // максимум = жёсткий ALL-IN
-          sound.play(SOUND_EVENTS.ALLIN);
+          // ЗВУК ALLIN тут не играем, его даст сервер,
+          // когда примет action { type: 'allin' }
           socket.emit('action', { type: 'allin' });
           return;
         }
@@ -753,6 +749,7 @@ function wireActionButtons() {
     });
   }
 
+  // Анимация нажатия кнопок
   const pressable = document.querySelectorAll('.action-btn, .btn-join, .btn-leave');
   pressable.forEach(btn => {
     const press = () => btn.classList.add('is-pressed');
