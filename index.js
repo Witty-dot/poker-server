@@ -495,6 +495,17 @@ function createTableEngine(io, config) {
       roundEndTimer = null;
     }
   }
+
+  function scheduleRoundEndIfComplete() {
+    clearRoundEndTimer();
+    if (!isBettingRoundComplete()) return;
+
+    roundEndTimer = setTimeout(() => {
+      roundEndTimer = null;
+      autoAdvanceIfReady(); // здесь уже есть логика: либо следующая улица, либо шоудаун
+    }, ROUND_END_DELAY_MS);
+  }
+  
   function clearStreetRevealTimer() {
     if (streetRevealTimer) {
       clearTimeout(streetRevealTimer);
@@ -1167,220 +1178,253 @@ function createTableEngine(io, config) {
   // ================= Обработка действий игрока =================
 
   function handlePlayerAction(playerId, action) {
-    if (!action || !action.type) return;
-    const actionType = action.type;
-    const isAuto = !!action.isAuto;
+  if (!action || !action.type) return;
+  const actionType = action.type;
+  const isAuto = !!action.isAuto;
 
-    const idx = table.players.findIndex(p => p.id === playerId);
-    if (idx < 0) return;
+  const idx = table.players.findIndex(p => p.id === playerId);
+  if (idx < 0) return;
 
-    const player = table.players[idx];
+  const player = table.players[idx];
 
-    // Пауза блокирует только РУЧНЫЕ действия, авто-действия (таймаут) разрешаем
-    if (!player.inHand || player.hasFolded || (player.isPaused && !isAuto)) return;
-    if (table.stage === 'waiting' || table.stage === 'showdown') return;
+  // Пауза блокирует только РУЧНЫЕ действия, авто-действия (таймаут) разрешаем
+  if (!player.inHand || player.hasFolded || (player.isPaused && !isAuto)) return;
+  if (table.stage === 'waiting' || table.stage === 'showdown') return;
 
-    if (table.currentTurnIndex === null || table.players[table.currentTurnIndex].id !== playerId) {
-      console.log(logPrefix(), 'Not this player\'s turn');
-      return;
+  if (table.currentTurnIndex === null || table.players[table.currentTurnIndex].id !== playerId) {
+    console.log(logPrefix(), 'Not this player\'s turn');
+    return;
+  }
+
+  if (!isAuto) {
+    player.hasClickedThisHand = true;
+  }
+
+  // ========================= FOLD =========================
+  if (actionType === 'fold') {
+    player.hasFolded = true;
+    player.inHand = false;
+    player.hasActedThisStreet = true;
+    table.lastLogMessage = `Игрок ${player.name} сделал фолд`;
+    playSound('FOLD');
+
+    const actives = activePlayers();
+    const roundComplete = isBettingRoundComplete();
+
+    if (!roundComplete && actives.length > 1) {
+      // раунд ещё продолжается — просто передаём ход
+      advanceTurn();
+      broadcastGameState();
+      scheduleTurnTimer();
+    } else {
+      // либо раунд закончился, либо остался 1 игрок — ждём задержку и идём в autoAdvanceIfReady()
+      broadcastGameState();
+      scheduleRoundEndIfComplete();
     }
+    return;
+  }
 
-    if (!isAuto) {
-      player.hasClickedThisHand = true;
-    }
+  // ====================== CALL / CHECK =====================
+  if (actionType === 'call') {
+    const toCall = table.currentBet - player.betThisStreet;
 
-    // FOLD
-    if (actionType === 'fold') {
-      player.hasFolded = true;
-      player.inHand = false;
+    // CHECK
+    if (toCall <= 0) {
       player.hasActedThisStreet = true;
-      table.lastLogMessage = `Игрок ${player.name} сделал фолд`;
+      table.lastLogMessage = `Игрок ${player.name} чек`;
+      playSound('CHECK');
 
       const actives = activePlayers();
-      if (actives.length <= 1) {
-        goToShowdown();
-      } else {
+      const roundComplete = isBettingRoundComplete();
+
+      if (!roundComplete && actives.length > 1) {
         advanceTurn();
         broadcastGameState();
         scheduleTurnTimer();
+      } else {
+        broadcastGameState();
+        scheduleRoundEndIfComplete();
       }
       return;
     }
 
-    // CALL / CHECK
-    if (actionType === 'call') {
-      const toCall = table.currentBet - player.betThisStreet;
+    // CALL с оплатой
+    const pay = Math.min(player.stack, toCall);
+    if (pay <= 0) return;
 
-      if (toCall <= 0) {
-        player.hasActedThisStreet = true;
-        table.lastLogMessage = `Игрок ${player.name} чек`;
-        autoAdvanceIfReady();
-        if (table.stage !== 'showdown' && !isBettingRoundComplete()) {
-          advanceTurn();
-          broadcastGameState();
-          scheduleTurnTimer();
-        } else {
-          broadcastGameState();
-        }
-        return;
-      }
+    player.stack -= pay;
+    player.betThisStreet += pay;
+    player.totalBet = (player.totalBet || 0) + pay;
+    table.streetPot += pay;
+    player.hasActedThisStreet = true;
 
-      const pay = Math.min(player.stack, toCall);
-      if (pay <= 0) return;
-
-      player.stack -= pay;
-      player.betThisStreet += pay;
-      player.totalBet = (player.totalBet || 0) + pay;
-      table.streetPot += pay;
-      player.hasActedThisStreet = true;
-
-      if (player.stack === 0 && player.betThisStreet < table.currentBet) {
-        table.lastLogMessage = `Игрок ${player.name} олл-ин на ${player.betThisStreet} фишек (меньше текущей ставки)`;
-      } else if (player.stack === 0) {
-        table.lastLogMessage = `Игрок ${player.name} олл-ин на колл (${player.betThisStreet} фишек)`;
-      } else {
-        table.lastLogMessage = `Игрок ${player.name} колл ${pay}`;
-      }
-      
-      autoAdvanceIfReady();
-      if (table.stage !== 'showdown' && !isBettingRoundComplete()) {
-        advanceTurn();
-        broadcastGameState();
-        scheduleTurnTimer();
-      } else {
-        broadcastGameState();
-      }
-      return;
+    if (player.stack === 0 && player.betThisStreet < table.currentBet) {
+      table.lastLogMessage = `Игрок ${player.name} олл-ин на ${player.betThisStreet} фишек (меньше текущей ставки)`;
+    } else if (player.stack === 0) {
+      table.lastLogMessage = `Игрок ${player.name} олл-ин на колл (${player.betThisStreet} фишек)`;
+    } else {
+      table.lastLogMessage = `Игрок ${player.name} колл ${pay}`;
     }
 
-    // ЯВНЫЙ ALL-IN
-    if (actionType === 'allin') {
-      if (player.stack <= 0) return;
+    playSound('CALL');
 
-      const all = player.stack;
+    const actives = activePlayers();
+    const roundComplete = isBettingRoundComplete();
 
-      player.stack = 0;
-      player.betThisStreet += all;
-      player.totalBet = (player.totalBet || 0) + all;
-      table.streetPot += all;
-      player.hasActedThisStreet = true;
-
-      if (player.betThisStreet > table.currentBet) {
-        const raiseSize = player.betThisStreet - table.currentBet;
-        table.minRaise = Math.max(table.minRaise || 10, raiseSize);
-        table.currentBet = player.betThisStreet;
-
-        for (const p of table.players) {
-          if (p.id !== player.id && p.inHand && !p.hasFolded && !p.isPaused && p.stack > 0) {
-            p.hasActedThisStreet = false;
-          }
-        }
-
-        table.lastLogMessage = `Игрок ${player.name} пошёл олл-ин на ${player.betThisStreet} фишек`;
-      } else if (player.betThisStreet === table.currentBet) {
-        table.lastLogMessage = `Игрок ${player.name} олл-ин на колл (${player.betThisStreet} фишек)`;
-      } else {
-        table.lastLogMessage = `Игрок ${player.name} олл-ин на ${player.betThisStreet} фишек (меньше текущей ставки)`;
-      }
-      
-      autoAdvanceIfReady();
-      if (table.stage !== 'showdown' && !isBettingRoundComplete()) {
-        advanceTurn();
-        broadcastGameState();
-        scheduleTurnTimer();
-      } else {
-        broadcastGameState();
-      }
-      return;
+    if (!roundComplete && actives.length > 1) {
+      advanceTurn();
+      broadcastGameState();
+      scheduleTurnTimer();
+    } else {
+      broadcastGameState();
+      scheduleRoundEndIfComplete();
     }
-
-    // BET / RAISE
-    if (actionType === 'bet') {
-      const minRaise = table.minRaise || 10;
-      let rawAmount = null;
-
-      if (typeof action.amount === 'number' && !Number.isNaN(action.amount)) {
-        rawAmount = Math.max(0, Math.floor(action.amount));
-      }
-
-      if (table.currentBet === 0) {
-        const desired = rawAmount && rawAmount > 0 ? rawAmount : 10;
-        const toBet = Math.min(player.stack, desired);
-        if (toBet <= 0) return;
-
-        player.stack -= toBet;
-        player.betThisStreet += toBet;
-        player.totalBet = (player.totalBet || 0) + toBet;
-        table.streetPot += toBet;
-
-        table.currentBet = player.betThisStreet;
-        table.minRaise = 10;
-        player.hasActedThisStreet = true;
-        table.lastLogMessage = `Игрок ${player.name} бет ${toBet}`;
-
-        for (const p of table.players) {
-          if (p.id !== player.id && p.inHand && !p.hasFolded && !p.isPaused && p.stack > 0) {
-            p.hasActedThisStreet = false;
-          }
-        }
-
-        advanceTurn();
-        broadcastGameState();
-        scheduleTurnTimer();
-        return;
-      } else {
-        let desiredTarget = rawAmount && rawAmount > 0
-          ? rawAmount
-          : (table.currentBet + minRaise);
-
-        if (desiredTarget < table.currentBet + minRaise) {
-          desiredTarget = table.currentBet + minRaise;
-        }
-
-        const toPay = desiredTarget - player.betThisStreet;
-        const pay = Math.min(player.stack, toPay);
-        if (pay <= 0) return;
-
-        player.stack -= pay;
-        player.betThisStreet += pay;
-        player.totalBet = (player.totalBet || 0) + pay;
-        table.streetPot += pay;
-
-        const oldBet = table.currentBet;
-        table.currentBet = Math.max(table.currentBet, player.betThisStreet);
-        const raiseSize = table.currentBet - oldBet;
-        if (raiseSize > 0) {
-          table.minRaise = Math.max(table.minRaise || 10, raiseSize);
-        }
-
-        player.hasActedThisStreet = true;
-
-        if (player.stack === 0 && player.betThisStreet > oldBet) {
-          table.lastLogMessage = `Игрок ${player.name} олл-ин рейз до ${player.betThisStreet} фишек`;
-        } else {
-          table.lastLogMessage = `Игрок ${player.name} рейз до ${player.betThisStreet}`;
-        }
-
-        for (const p of table.players) {
-          if (p.id !== player.id && p.inHand && !p.hasFolded && !p.isPaused && p.stack > 0) {
-            p.hasActedThisStreet = false;
-          }
-        }
-
-        autoAdvanceIfReady();
-        if (table.stage !== 'showdown' && !isBettingRoundComplete()) {
-          advanceTurn();
-          broadcastGameState();
-          scheduleTurnTimer();
-        } else {
-          broadcastGameState();
-        }
-        return;
-      }
-    }
-
-    console.log(logPrefix(), 'Unknown action:', actionType);
+    return;
   }
+
+  // ======================= ЯВНЫЙ ALL-IN ====================
+  if (actionType === 'allin') {
+    if (player.stack <= 0) return;
+
+    const all = player.stack;
+
+    player.stack = 0;
+    player.betThisStreet += all;
+    player.totalBet = (player.totalBet || 0) + all;
+    table.streetPot += all;
+    player.hasActedThisStreet = true;
+
+    if (player.betThisStreet > table.currentBet) {
+      const raiseSize = player.betThisStreet - table.currentBet;
+      table.minRaise = Math.max(table.minRaise || 10, raiseSize);
+      table.currentBet = player.betThisStreet;
+
+      for (const p of table.players) {
+        if (p.id !== player.id && p.inHand && !p.hasFolded && !p.isPaused && p.stack > 0) {
+          p.hasActedThisStreet = false;
+        }
+      }
+
+      table.lastLogMessage = `Игрок ${player.name} пошёл олл-ин на ${player.betThisStreet} фишек`;
+    } else if (player.betThisStreet === table.currentBet) {
+      table.lastLogMessage = `Игрок ${player.name} олл-ин на колл (${player.betThisStreet} фишек)`;
+    } else {
+      table.lastLogMessage = `Игрок ${player.name} олл-ин на ${player.betThisStreet} фишек (меньше текущей ставки)`;
+    }
+
+    playSound('ALLIN');
+
+    const actives = activePlayers();
+    const roundComplete = isBettingRoundComplete();
+
+    if (!roundComplete && actives.length > 1) {
+      advanceTurn();
+      broadcastGameState();
+      scheduleTurnTimer();
+    } else {
+      broadcastGameState();
+      scheduleRoundEndIfComplete();
+    }
+    return;
+  }
+
+  // ===================== BET / RAISE =======================
+  if (actionType === 'bet') {
+    const minRaise = table.minRaise || 10;
+    let rawAmount = null;
+
+    if (typeof action.amount === 'number' && !Number.isNaN(action.amount)) {
+      rawAmount = Math.max(0, Math.floor(action.amount));
+    }
+
+    // --- Первый бет на улице (currentBet === 0) ---
+    if (table.currentBet === 0) {
+      const desired = rawAmount && rawAmount > 0 ? rawAmount : 10;
+      const toBet = Math.min(player.stack, desired);
+      if (toBet <= 0) return;
+
+      player.stack -= toBet;
+      player.betThisStreet += toBet;
+      player.totalBet = (player.totalBet || 0) + toBet;
+      table.streetPot += toBet;
+
+      table.currentBet = player.betThisStreet;
+      table.minRaise = 10;
+      player.hasActedThisStreet = true;
+      table.lastLogMessage = `Игрок ${player.name} бет ${toBet}`;
+
+      playSound('BET');
+
+      for (const p of table.players) {
+        if (p.id !== player.id && p.inHand && !p.hasFolded && !p.isPaused && p.stack > 0) {
+          p.hasActedThisStreet = false;
+        }
+      }
+
+      // Здесь раунд точно не завершён: только что открылся бет
+      advanceTurn();
+      broadcastGameState();
+      scheduleTurnTimer();
+      return;
+    }
+
+    // --- Рейз поверх существующего бета/ставки ---
+    let desiredTarget = rawAmount && rawAmount > 0
+      ? rawAmount
+      : (table.currentBet + minRaise);
+
+    if (desiredTarget < table.currentBet + minRaise) {
+      desiredTarget = table.currentBet + minRaise;
+    }
+
+    const toPay = desiredTarget - player.betThisStreet;
+    const pay = Math.min(player.stack, toPay);
+    if (pay <= 0) return;
+
+    player.stack -= pay;
+    player.betThisStreet += pay;
+    player.totalBet = (player.totalBet || 0) + pay;
+    table.streetPot += pay;
+
+    const oldBet = table.currentBet;
+    table.currentBet = Math.max(table.currentBet, player.betThisStreet);
+    const raiseSize = table.currentBet - oldBet;
+    if (raiseSize > 0) {
+      table.minRaise = Math.max(table.minRaise || 10, raiseSize);
+    }
+
+    player.hasActedThisStreet = true;
+
+    if (player.stack === 0 && player.betThisStreet > oldBet) {
+      table.lastLogMessage = `Игрок ${player.name} олл-ин рейз до ${player.betThisStreet} фишек`;
+    } else {
+      table.lastLogMessage = `Игрок ${player.name} рейз до ${player.betThisStreet}`;
+    }
+
+    playSound('RAISE');
+
+    for (const p of table.players) {
+      if (p.id !== player.id && p.inHand && !p.hasFolded && !p.isPaused && p.stack > 0) {
+        p.hasActedThisStreet = false;
+      }
+    }
+
+    const actives = activePlayers();
+    const roundComplete = isBettingRoundComplete();
+
+    if (!roundComplete && actives.length > 1) {
+      advanceTurn();
+      broadcastGameState();
+      scheduleTurnTimer();
+    } else {
+      broadcastGameState();
+      scheduleRoundEndIfComplete();
+    }
+    return;
+  }
+
+  console.log(logPrefix(), 'Unknown action:', actionType);
+}
 
   // ======== ПУБЛИЧНОЕ API ДВИЖКА СТОЛА ========
 
