@@ -665,7 +665,7 @@ function createTableEngine(io, config) {
     if (bbIndex != null) takeBlind(bbIndex, table.bigBlind);
 
     // раздача карманных
-    playSound('card_deal');
+    playSound('CARD_DEAL');
     for (let r = 0; r < 2; r++) {
       for (const idx of activeSeats) {
         const p = table.players[idx];
@@ -701,27 +701,32 @@ function createTableEngine(io, config) {
     }, CARD_DEAL_DELAY_MS);
   }
 
-  function dealCommunity(count) {
-    if (table.deck.length > 0) {
-      table.deck.pop(); // burn
-    }
-    playSound('card_board');
-    for (let i = 0; i < count; i++) {
-      const card = dealCards(table.deck, 1)[0];
-      if (card) table.communityCards.push(card);
-    }
+  function dealCommunity(count, soundType = 'CARD_BOARD') {
+  if (table.deck.length > 0) {
+    table.deck.pop(); // burn
+  }
+  playSound(soundType);
+  for (let i = 0; i < count; i++) {
+    const card = dealCards(table.deck, 1)[0];
+    if (card) table.communityCards.push(card);
+  }
   }
 
   function revealStreetWithDelay(cardCount, newStage) {
   clearTurnTimer();
   clearStreetRevealTimer();
 
-  // выкладываем карты и играем звук
-  dealCommunity(cardCount);
+  // выбираем тип звука
+  const soundType =
+    newStage === 'flop'
+      ? 'CARD_BOARD'        // флоп
+      : 'CARD_TURN_RIVER';  // тёрн и ривер – отдельный звук
 
-  // логически уже новая улица (можно сразу показать "Флоп"/"Тёрн"/"Ривер")
+  // выкладываем карты и играем звук
+  dealCommunity(cardCount, soundType);
+
+  // логически уже новая улица
   table.stage = newStage;
-  table.currentTurnIndex = null;
   broadcastGameState();
 
   const delay =
@@ -731,10 +736,9 @@ function createTableEngine(io, config) {
 
   streetRevealTimer = setTimeout(() => {
     streetRevealTimer = null;
-    // здесь сбросим ставки, выберем первого говорящего и запустим таймер
     startNewStreet(newStage);
-    }, delay);
-  } 
+  }, delay);
+  }
   
   function startNewStreet(newStage) {
     table.stage = newStage;
@@ -864,7 +868,7 @@ function createTableEngine(io, config) {
 
     resolveShowdown();
     pushSnapshot('after showdown', table);
-    playSound('showdown');
+    playSound('SHOWDOWN');
     broadcastGameState();
     scheduleNextHandIfNeeded();
   }
@@ -910,7 +914,7 @@ function createTableEngine(io, config) {
       const line = `Общий банк: ${totalPot} фишек. Все остальные игроки сбросили карты, ` + 
         `игрок ${winner.name} забирает весь банк без вскрытия.`;
       table.dealerDetails = line;
-      playSound('win');
+      playSound('POT_WIN');
       return;
     }
 
@@ -1069,15 +1073,22 @@ function createTableEngine(io, config) {
       collapseStreetPot();
 
       if (table.stage === 'preflop') {
-        dealCommunity(3);
-        dealCommunity(1);
-        dealCommunity(1);
+      // флоп (3 карты) – старый звук борда
+        dealCommunity(3, 'CARD_BOARD');
+      // тёрн и ривер – отдельный звук
+        dealCommunity(1, 'CARD_TURN_RIVER');
+        dealCommunity(1, 'CARD_TURN_RIVER');
+
       } else if (table.stage === 'flop') {
-        dealCommunity(1);
-        dealCommunity(1);
+      // уже есть флоп, выкладываем тёрн + ривер
+        dealCommunity(1, 'CARD_TURN_RIVER');
+        dealCommunity(1, 'CARD_TURN_RIVER');
+
       } else if (table.stage === 'turn') {
-        dealCommunity(1);
+      // только ривер
+        dealCommunity(1, 'CARD_TURN_RIVER');
       }
+
       goToShowdown();
       return;
     }
