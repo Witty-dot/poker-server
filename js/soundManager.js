@@ -114,6 +114,11 @@ export const SOUND_DEFS = {
   },
 };
 
+const SOUND_ALIASES = {
+  WIN: 'POT_WIN',
+  SHOWDOWN: 'POT_WIN',
+};
+
 export class SoundManager {
   constructor(options = {}) {
     this.basePath = options.basePath || '/sound';
@@ -240,61 +245,67 @@ export class SoundManager {
   }
 
   play(eventName) {
-    const def = SOUND_DEFS[eventName];
-    if (!def) {
-      console.warn('[SoundManager] Unknown event', eventName);
-      return;
-    }
-    if (this.muted) return;
+  if (!eventName) return;
 
-    const url = this._resolveUrl(eventName);
-    if (!url) return;
+  // 1) нормализуем в строку и делаем UPPERCASE
+  let key = String(eventName).toUpperCase();
 
-    const volume = this._getEffectiveVolume(def.category);
+  // 2) алиасы типа WIN → POT_WIN, SHOWDOWN → POT_WIN
+  if (SOUND_ALIASES[key]) {
+    key = SOUND_ALIASES[key];
+  }
 
-    let pool = this.htmlAudioCache.get(url);
+  const def = SOUND_DEFS[key];
+  if (!def) {
+    console.warn('[SoundManager] Unknown event', eventName);
+    return;
+  }
+  if (this.muted) return;
 
-    // если пула ещё нет – создаём, но пока НЕ считаем url готовым
-    if (!pool) {
-      pool = [new Audio(url)];
-      pool[0].preload = 'auto';
-      this.htmlAudioCache.set(url, pool);
+  const url = this._resolveUrl(key);
+  if (!url) return;
 
-      // подписываемся на canplaythrough, чтобы отметить готовность
-      const audio = pool[0];
-      audio.addEventListener('canplaythrough', () => {
-        this.readyUrls.add(url);
-      }, { once: true });
-      audio.addEventListener('error', () => {
-        console.warn('[SoundManager] load error', url);
-        this.readyUrls.add(url); // чтобы не висеть вечно
-      }, { once: true });
-    }
+  const volume = this._getEffectiveVolume(def.category);
 
-    // Если звук ещё не готов – просто игнорируем (НЕ накапливаем очередь)
-    if (!this.readyUrls.has(url)) {
-      return;
-    }
+  let pool = this.htmlAudioCache.get(url);
 
-    // ищем свободный инстанс
-    let audio = pool.find(a => a.paused || a.ended);
+  if (!pool) {
+    pool = [new Audio(url)];
+    pool[0].preload = 'auto';
+    this.htmlAudioCache.set(url, pool);
 
-    if (!audio) {
-      if (pool.length < this.poolSize + 2) {
-        const clone = pool[0].cloneNode(true);
-        pool.push(clone);
-        audio = clone;
-      } else {
-        audio = pool[0];
-      }
-    }
+    const audio = pool[0];
+    audio.addEventListener('canplaythrough', () => {
+      this.readyUrls.add(url);
+    }, { once: true });
+    audio.addEventListener('error', () => {
+      console.warn('[SoundManager] load error', url);
+      this.readyUrls.add(url);
+    }, { once: true });
+  }
 
-    try {
-      audio.currentTime = 0;
-      audio.volume = volume;
-      audio.play().catch(() => {});
-    } catch (e) {
-      console.warn('[SoundManager] HTMLAudio play error', e);
+  if (!this.readyUrls.has(url)) {
+    return;
+  }
+
+  let audio = pool.find(a => a.paused || a.ended);
+
+  if (!audio) {
+    if (pool.length < this.poolSize + 2) {
+      const clone = pool[0].cloneNode(true);
+      pool.push(clone);
+      audio = clone;
+    } else {
+      audio = pool[0];
     }
   }
+
+  try {
+    audio.currentTime = 0;
+    audio.volume = volume;
+    audio.play().catch(() => {});
+  } catch (e) {
+    console.warn('[SoundManager] HTMLAudio play error', e);
+  }
+ }
 }
