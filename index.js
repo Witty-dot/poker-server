@@ -638,7 +638,8 @@ function createTableEngine(io, config) {
       for (const idx of activeSeats) {
         const p = table.players[idx];
         const card = dealCards(table.deck, 1)[0];
-        if (card) p.hand.push(card);
+        if (card) {playSound('card_deal');
+                   p.hand.push(card);}
       }
     }
 
@@ -657,8 +658,7 @@ function createTableEngine(io, config) {
       table.lastLogMessage = 'Начата новая раздача';
     }
 
-    console.log(logPrefix(), 'Hand started. StreetPot:', table.streetPot, 'Stage:', table.stage);
-    playSound('card_deal');
+    console.log(logPrefix(), 'Hand started. StreetPot:', table.streetPot, 'Stage:', table.stage);  
     broadcastGameState();
     scheduleTurnTimer();
   }
