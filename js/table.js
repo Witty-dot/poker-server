@@ -692,14 +692,11 @@ function wireActionButtons() {
     });
   }
 
-  // Пресеты ставки — оставляем UI-клик, но убираем игровой ALL-IN звук
+  
   if (presetButtons.length && betAmountEl) {
     presetButtons.forEach(btn => {
       btn.addEventListener('click', () => {
         if (!lastState) return;
-
-        // Локальный лёгкий UI-клик пусть остаётся
-        sound.play(SOUND_EVENTS.UI_CLICK_SECONDARY);
 
         const preset = btn.getAttribute('data-bet-preset');
 
