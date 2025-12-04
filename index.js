@@ -667,11 +667,11 @@ function createTableEngine(io, config) {
     if (table.deck.length > 0) {
       table.deck.pop(); // burn
     }
+    playSound('card_board');
     for (let i = 0; i < count; i++) {
       const card = dealCards(table.deck, 1)[0];
       if (card) table.communityCards.push(card);
     }
-    playSound('card_board');
   }
 
   function startNewStreet(newStage) {
