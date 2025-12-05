@@ -878,6 +878,20 @@ function wireActionButtons() {
 // ===============   SEAT BUTTON   =====================================
 // =====================================================================
 
+// =====================================================================
+// ЛОГОТИП → ЛОББИ
+// =====================================================================
+
+function wireLogoToLobby() {
+  if (!logoArea) return;
+  logoArea.style.cursor = 'pointer';
+
+  logoArea.addEventListener('click', () => {
+    window.location.href = '/';          // если лобби — index.html
+    // window.location.href = '/lobby.html'; // если у тебя есть lobby.html
+  });
+}
+
 function wireSeatButton() {
   if (!seatButton) return;
 
