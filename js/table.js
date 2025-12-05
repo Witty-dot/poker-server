@@ -813,8 +813,6 @@ function wireSeatButton() {
       return;
     }
 
-    const players = lastState.players || [];
-    const me = players.find(p => p.id === myPlayerId) || null;
     const uiState = getSeatUiState(lastState);
 
     if (uiState === 'notSeated') {
@@ -826,10 +824,12 @@ function wireSeatButton() {
       });
       socket.emit('setPlaying', { playing: true });
     } else if (uiState === 'playing') {
-      // Поставить себя на паузу (остаться в списке игроков)
-      socket.emit('setPlaying', { playing: false });
+      // ТЗ: полный выход со стола.
+      // Сервер пометит игрока pendingLeave: true,
+      // автофолдит при получении хода и освободит кресло после раздачи.
+      socket.emit('leaveTable');
     } else if (uiState === 'paused') {
-      // Вернуться в игру
+      // Вернуться в игру с паузы
       socket.emit('setPlaying', { playing: true });
     }
   });
