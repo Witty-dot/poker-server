@@ -3,7 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <title>Midnight Black Poker – Table</title>
+
+  <!-- адаптив -->
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- для запуска с домашнего экрана без белой строки браузера -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
 
   <style>
     :root {
@@ -155,112 +161,113 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    /* первая версия btn-play, оставляю как было */
+    /* маленькие иконные кнопки */
+    .btn-icon {
+      padding:0;
+      width:32px;
+      height:32px;
+      min-width:32px;
+      border-radius:50%;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+    }
+
     .btn-play {
-      border-radius: 999px;
-      padding: 6px 16px;
-      font-size: 13px;
-      border: 1px solid rgba(120, 133, 255, 0.9);
-      background: radial-gradient(circle at 0 0,
-        rgba(120, 133, 255, 0.45),
-        rgba(10, 10, 24, 0.96)
+      border-radius:999px;
+      padding:6px 16px;
+      font-size:13px;
+      border:1px solid rgba(120,133,255,0.9);
+      background:radial-gradient(circle at 0 0,
+        rgba(120,133,255,0.45),
+        rgba(10,10,24,0.96)
       );
-      color: #f5f5ff;
-      box-shadow: 0 0 18px rgba(120, 133, 255, 0.95);
+      color:#f5f5ff;
+      box-shadow:0 0 18px rgba(120,133,255,0.95);
     }
 
     /* ===========================================
-       МАЛЕНЬКАЯ КНОПКА "ПОКИНУТЬ СТОЛ"
-       =========================================== */
+       МАЛЕНЬКАЯ КРУГЛАЯ КНОПКА "ПОКИНУТЬ СТОЛ"
+       (самый первый удачный вариант, только на pseudo)
+    =========================================== */
 
-    /* сама кнопка: по умолчанию скрыта */
+    /* базовый стиль */
     #btnExit {
-      opacity: 0;
-      pointer-events: none;
-      transform: scale(0.85);
-      transition: 0.18s ease-out;
-      color: rgba(255,70,110,0.95);
+      border:1px solid rgba(255,65,111,0.5);
+      color:#ffd9e4;
+      background:radial-gradient(circle at 0 0,rgba(255,65,111,0.18),transparent);
+      font-size:14px;
+      box-shadow:
+        0 0 8px rgba(255,65,111,0.8),
+        0 0 18px rgba(255,65,111,0.7);
+      position:relative;
+
+      opacity:0;
+      pointer-events:none;
+      transform:scale(0.85);
+      transition:
+        opacity 0.18s ease-out,
+        transform 0.18s ease-out,
+        box-shadow 0.18s ease-out,
+        filter 0.18s ease-out;
     }
 
-    /* показываем, когда сработала логика и навесился класс */
+    /* включаем только с классом-меткой */
     #btnExit.btn-icon-exit--visible {
-      opacity: 1;
-      pointer-events: auto;
-      transform: scale(1);
+      opacity:1;
+      pointer-events:auto;
+      transform:scale(1);
     }
 
-    /* НЕОНОВЫЙ КРАСНЫЙ КРУГ ВОКРУГ ИКОНКИ */
-    .exit-table-icon-wrapper {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      border: 2px solid rgba(255,70,110,0.9);
-      box-shadow:
-        0 0 6px rgba(255,70,110,0.9),
-        0 0 14px rgba(255,70,110,0.7),
-        inset 0 0 6px rgba(255,70,110,0.4);
-      background: rgba(30,0,10,0.3);
-      transition: 0.25s ease-out;
+    #btnExit:hover {
+      filter:brightness(1.1);
     }
 
-    /* СТОЛ ВНУТРИ КРУГА */
-    .exit-table-icon {
-      display: inline-block;
-      position: relative;
-      width: 22px;
-      height: 14px;
-      border-radius: 7px;
-      border: 2px solid rgba(255,70,110,0.95);
-      border-bottom-color: transparent; /* разрыв снизу */
-      box-shadow:
-        0 0 6px rgba(255,70,110,0.8),
-        0 0 12px rgba(255,70,110,0.55);
-      margin-top: 1px;
-      box-sizing: border-box;
+    /* стол-овал */
+    #btnExit::before {
+      content:"";
+      position:absolute;
+      left:50%;
+      top:54%;
+      transform:translate(-50%,-50%);
+      width:18px;
+      height:9px;
+      border-radius:7px 7px 5px 5px;
+      background:currentColor;
     }
 
-    /* мягкий подсвет внутри "стола" */
-    .exit-table-icon::before {
-      content: "";
-      position: absolute;
-      inset: 2px 3px 4px;
-      border-radius: 5px;
-      background: radial-gradient(circle,
-        rgba(255,70,110,0.25),
-        rgba(0,0,0,0)
-      );
-    }
-
-    /* стрелка вверх из середины стола */
-    .exit-table-icon::after {
-      content: "";
-      position: absolute;
-      left: 50%;
-      top: -7px;
-      transform: translateX(-50%);
-      width: 0;
-      height: 0;
-      border-left: 6px solid transparent;
-      border-right: 6px solid transparent;
-      border-bottom: 9px solid rgba(255,70,110,0.95);
-      filter: drop-shadow(0 0 5px rgba(255,70,110,0.9));
+    /* стрелка вверх */
+    #btnExit::after {
+      content:"";
+      position:absolute;
+      left:50%;
+      top:32%;
+      transform:translateX(-50%);
+      width:0;
+      height:0;
+      border-left:7px solid transparent;
+      border-right:7px solid transparent;
+      border-bottom:9px solid currentColor;
     }
 
     .btn-join {
-      border:1px solid rgba(53,212,155,0.65);
-      background:radial-gradient(circle at 0 0,rgba(53,212,155,0.35),#073321);
+      padding:6px 18px;
+      font-size:13px;
+      border-radius:999px;
+      border:1px solid rgba(53,212,155,0.7);
+      background:radial-gradient(circle at 0 0,rgba(53,212,155,0.3),#073321);
       color:#e8fff7;
-      box-shadow:0 0 16px rgba(53,212,155,0.8);
+      box-shadow:0 0 12px rgba(53,212,155,0.7);
     }
 
     .btn-leave {
-      border-color:rgba(255,65,111,0.55);
-      background:radial-gradient(circle at 0 0,rgba(255,65,111,0.2),transparent);
+      padding:6px 18px;
+      font-size:13px;
+      border-radius:999px;
+      border:1px solid rgba(255,65,111,0.7);
+      background:radial-gradient(circle at 0 0,rgba(255,65,111,0.25),#2b0b16);
       color:#ffe9f1;
-      box-shadow:0 0 14px rgba(255,65,111,0.4);
+      box-shadow:0 0 12px rgba(255,65,111,0.6);
     }
 
     .btn.is-pressed,
@@ -282,14 +289,6 @@
       box-shadow:
         0 0 22px rgba(255,65,111,1),
         inset 0 0 18px rgba(255,65,111,0.95);
-    }
-
-    /* финальная версия btn-play, как у тебя ниже */
-    .btn-play {
-      border:1px solid rgba(111,122,255,0.85);
-      background:radial-gradient(circle at 0 0,rgba(111,122,255,0.28),#1a2250);
-      color:#f5f7ff;
-      box-shadow:0 0 18px rgba(111,122,255,0.9);
     }
 
     .btn-play.is-pressed,
@@ -325,6 +324,9 @@
       position:relative;
       flex:2;
       min-width:0;
+
+      /* чтобы стол не "подлазил" под sticky-хэдер после обновления */
+      margin-top:8px;
     }
 
     .table-top-info {
@@ -421,8 +423,7 @@
     }
 
     .hero-avatar {
-      width:40px;
-      height:40px;
+      width:40px; height:40px;
       border-radius:50%;
       background:radial-gradient(circle,rgba(111,122,255,0.25),#050509);
       border:1px solid rgba(255,255,255,0.15);
@@ -507,8 +508,7 @@
 
     input[type="range"].range::-webkit-slider-thumb {
       -webkit-appearance:none;
-      width:14px;
-      height:14px;
+      width:14px; height:14px;
       border-radius:50%;
       background:#fff;
       border:2px solid var(--accent-strong);
@@ -817,11 +817,9 @@
 
       <div class="topbar-right">
         <div class="topbar-actions">
-          <button class="btn btn-icon btn-icon-exit" id="btnExit" aria-label="Покинуть стол">
-            <span class="exit-table-icon-wrapper">
-              <span class="exit-table-icon"></span>
-            </span>
-          </button>
+          <!-- маленькая круглая кнопка выхода -->
+          <button class="btn btn-icon" id="btnExit" aria-label="Покинуть стол"></button>
+
           <button class="btn btn-icon" id="btnSettings" aria-label="Настройки">⚙</button>
           <button class="btn btn-join" id="btnLeave">Сесть за стол</button>
         </div>
@@ -871,42 +869,42 @@
             <div class="seat seat-1" data-seat="1">
               <div class="seat-avatar">P1</div>
               <div class="seat-text">
-                <span class="seat-name">Свободно</span>
+                <span class="seat-name">Пусто</span>
                 <span class="seat-stack"></span>
               </div>
             </div>
             <div class="seat seat-2" data-seat="2">
               <div class="seat-avatar">P2</div>
               <div class="seat-text">
-                <span class="seat-name">Свободно</span>
+                <span class="seat-name">Пусто</span>
                 <span class="seat-stack"></span>
               </div>
             </div>
             <div class="seat seat-3" data-seat="3">
               <div class="seat-avatar">P3</div>
               <div class="seat-text">
-                <span class="seat-name">Свободно</span>
+                <span class="seat-name">Пусто</span>
                 <span class="seat-stack"></span>
               </div>
             </div>
             <div class="seat seat-4" data-seat="4">
               <div class="seat-avatar">P4</div>
               <div class="seat-text">
-                <span class="seat-name">Свободно</span>
+                <span class="seat-name">Пусто</span>
                 <span class="seat-stack"></span>
               </div>
             </div>
             <div class="seat seat-5" data-seat="5">
               <div class="seat-avatar">P5</div>
               <div class="seat-text">
-                <span class="seat-name">Свободно</span>
+                <span class="seat-name">Пусто</span>
                 <span class="seat-stack"></span>
               </div>
             </div>
             <div class="seat seat-6" data-seat="6">
               <div class="seat-avatar">P6</div>
               <div class="seat-text">
-                <span class="seat-name">Свободно</span>
+                <span class="seat-name">Пусто</span>
                 <span class="seat-stack"></span>
               </div>
             </div>
@@ -967,8 +965,8 @@
 
             <div class="actions-row" id="actions">
               <button class="action-btn action-fold" id="foldButton">Fold</button>
-              <button class="action-btn action-check" id="checkCallButton">Check / Call</button>
-              <button class="action-btn action-bet" id="betRaiseButton">Bet / Raise</button>
+              <button class="action-btn action-check" id="checkCallButton">Check</button>
+              <button class="action-btn action-bet" id="betRaiseButton">Bet</button>
               <button class="action-btn action-allin" id="allInButton">All-in</button>
             </div>
           </div>
