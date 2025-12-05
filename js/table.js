@@ -527,7 +527,7 @@ function updateSeatButton(state) {
   const uiState = getSeatUiState(state);
 
   // Сброс оформляющих классов
-  seatButton.classList.remove('btn-join', 'btn-leave');
+  seatButton.classList.remove('btn-join', 'btn-leave', 'btn-play');
   seatButton.disabled = false;
 
   // По умолчанию иконку выхода прячем
@@ -539,14 +539,16 @@ function updateSeatButton(state) {
     // Ещё не сидим за столом
     seatButton.textContent = 'Сесть за стол';
     seatButton.classList.add('btn-join');
+
   } else if (uiState === 'playing') {
     // Активно играем
     seatButton.textContent = 'Покинуть стол';
     seatButton.classList.add('btn-leave');
+
   } else if (uiState === 'paused') {
-    // На паузе: большая кнопка "Сесть за стол", маленькая иконка выхода видна
-    seatButton.textContent = 'Сесть за стол';
-    seatButton.classList.add('btn-join');
+    // На паузе: большая кнопка "Играть", рядом маленький выход
+    seatButton.textContent = 'Играть';
+    seatButton.classList.add('btn-play');
     if (exitButton) {
       exitButton.classList.add('btn-icon-exit--visible');
     }
