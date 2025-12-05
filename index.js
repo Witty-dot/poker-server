@@ -824,31 +824,36 @@ function createTableEngine(io, config) {
     clearNextHandTimer();
 
     nextHandTimer = setTimeout(() => {
-      nextHandTimer = null;
+    nextHandTimer = null;
 
-      table.players.forEach(p => {
-        if (p.inHand && !p.hasClickedThisHand) {
-          p.isPaused = true;
-        }
-      });
-
-      const activeSeats = getActiveSeatIndices();
-      if (activeSeats.length < 2) {
-        resetHandState();
-        pushSnapshot('after showdown -> not enough players for next hand', table);
-        broadcastGameState();
-        return;
+    // Все, кто не кликал ни разу за раздачу — уходим в паузу
+    table.players.forEach(p => {
+      if (p.inHand && !p.hasClickedThisHand) {
+        p.isPaused = true;
       }
+    });
 
-      const nextBtn = nextActiveIndexFrom(table.buttonIndex ?? activeSeats[0]);
-      if (nextBtn != null) {
-        table.buttonIndex = nextBtn;
-      }
+    // А все, кто просил "Покинуть стол" — полностью убираем
+    // (в этот момент их totalBet уже обнулён в resolveShowdown)
+    table.players = table.players.filter(p => !p.pendingLeave);
 
+    const activeSeats = getActiveSeatIndices();
+    if (activeSeats.length < 2) {
       resetHandState();
-      startHand();
-      pushSnapshot('auto start next hand after showdown', table);
+      pushSnapshot('after showdown -> not enough players for next hand', table);
       broadcastGameState();
+      return;
+    }
+
+    const nextBtn = nextActiveIndexFrom(table.buttonIndex ?? activeSeats[0]);
+    if (nextBtn != null) {
+      table.buttonIndex = nextBtn;
+    }
+
+    resetHandState();
+    startHand();
+    pushSnapshot('auto start next hand after showdown', table);
+    broadcastGameState();
     }, NEXT_HAND_DELAY_MS);
   }
 
@@ -1892,6 +1897,14 @@ io.on('connection', (socket) => {
     e.setPlaying(socket.id, playing);
   });
 
+  socket.on('leaveTable', () => {
+    const e = getEngineForSocket(socket);
+    if (!e) return;
+    e.leaveTable(socket.id);
+    // Человек остаётся подключён к сокету и может потом снова сесть за стол.
+    cleanupEmptyTables(e.limitId);
+  });
+  
   socket.on('chatMessage', (data) => {
     const e = getEngineForSocket(socket);
     if (!e) return;
