@@ -882,17 +882,38 @@
 
       <div class="topbar-right">
         <div class="topbar-actions">
-          <!-- Кнопка выхода -->
-          <button class="btn btn-icon" id="btnExit" aria-label="Покинуть стол">
-            <span class="exit-glyph">
-            <span class="exit-arrow"></span>
-            </span>
-          </button>
-          <!-- Кнопка настроек (шестерёнка) -->
-          <button class="btn btn-icon" id="btnSettings" aria-label="Настройки">⚙</button>
-          <!-- Сесть / покинуть стол (зелёная / красная плашка) -->
-          <button class="btn btn-join" id="btnLeave">Сесть за стол</button>
-      </div>
+  <!-- маленькая круглая кнопка выхода -->
+  <button class="btn btn-icon btn-icon-exit" id="btnExit" aria-label="Покинуть стол">
+    <span class="exit-icon" aria-hidden="true">
+      <svg viewBox="0 0 32 32">
+        <!-- две неоновые дуги на одном круге -->
+        <circle
+          cx="16" cy="16" r="10"
+          stroke="#ffe5f1"
+          stroke-width="2.2"
+          fill="none"
+          stroke-linecap="round"
+          stroke-dasharray="18 8 18 999"
+          transform="rotate(-30 16 16)"
+        />
+        <!-- надпись EXIT внутри круга -->
+        <text
+          x="16" y="19"
+          text-anchor="middle"
+          fill="#ffe5f1"
+          font-size="8"
+          letter-spacing="1.3"
+          font-family="system-ui, -apple-system, 'SF Pro Text', 'Segoe UI', sans-serif"
+        >
+          EXIT
+        </text>
+      </svg>
+    </span>
+  </button>
+
+  <button class="btn btn-icon" id="btnSettings" aria-label="Настройки">⚙</button>
+  <button class="btn btn-join" id="btnLeave">Сесть за стол</button>
+</div>
         <div class="topbar-table-line">
           <span class="pill" id="tableName">Стол Midnight Black</span>
           <span class="pill" id="tablePlayers">0 / 6 игроков</span>
