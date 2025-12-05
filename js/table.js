@@ -569,6 +569,7 @@ function renderState(state) {
   renderBoardAndPot(state, comboKeys);
   renderHero(state, comboKeys, prevState);
   updateBetControls(state);
+  updateActionButtons(state);   // ← НОВАЯ СТРОКА
   updateSeatButton(state);
 }
 
@@ -593,6 +594,85 @@ function updateBetControls(state) {
   const percent = stack > 0 ? Math.round((val / stack) * 100) : 0;
   betRangeEl.value = String(percent);
   if (betPercentLabel) betPercentLabel.textContent = percent + '%';
+}
+
+// =====================================================================
+// ===============   ACTION BUTTON LABELS   =============================
+// =====================================================================
+
+function updateActionButtons(state) {
+  if (!state) return;
+  if (!checkCallButton && !betRaiseButton) return;
+
+  const players = state.players || [];
+  const me = players.find(p => p.id === myPlayerId) || null;
+
+  const stagePlayable = ['preflop', 'flop', 'turn', 'river'].includes(state.stage);
+  const inHand  = !!(me && me.inHand);
+  const stack   = me ? (me.stack || 0) : 0;
+  const myBet   = me ? (me.betThisStreet || 0) : 0;
+  const currentBet = state.currentBet || 0;
+  const toCall  = Math.max(0, currentBet - myBet);
+
+  const yourTurn = !!(state.yourTurn && me);
+
+  // --- базовые подписи по умолчанию ---
+  let checkLabel = 'Check';
+  let betLabel   = currentBet > 0 ? 'Raise' : 'Bet';
+
+  // Если мы вообще не играем эту раздачу / нет стека —
+  // просто ставим дефолт и выходим.
+  if (!stagePlayable || !inHand || !me || stack <= 0) {
+    if (checkCallButton) checkCallButton.textContent = checkLabel;
+    if (betRaiseButton)  betRaiseButton.textContent  = betLabel;
+    return;
+  }
+
+  // ---- ЛЕВАЯ КНОПКА: CHECK / CALL X ----
+  if (toCall <= 0) {
+    checkLabel = 'Check';
+  } else {
+    // есть что коллировать
+    checkLabel = 'Call';
+    if (toCall > 0) {
+      checkLabel += ' ' + formatNumber(toCall);
+    }
+    // если колл = весь стек, подсветим, что это по сути олл-ин
+    if (stack <= toCall) {
+      checkLabel += ' (all-in)';
+    }
+  }
+
+  // ---- ПРАВАЯ КНОПКА: BET / RAISE ----
+  betLabel = currentBet > 0 ? 'Raise' : 'Bet';
+
+  if (checkCallButton) checkCallButton.textContent = checkLabel;
+  if (betRaiseButton)  betRaiseButton.textContent  = betLabel;
+
+  // Доп. логика: если рейз невозможен по деньгам, блокируем Bet/Raise.
+  // Не трогаем состояние, если ход не наш – renderHero уже поставил disabled.
+  if (betRaiseButton) {
+    const prevDisabled = betRaiseButton.disabled;
+
+    let canRaise = yourTurn && stagePlayable && inHand && stack > 0;
+    if (canRaise) {
+      const minRaise = state.minRaise || 0;
+
+      if (currentBet === 0) {
+        // первый бет: должен быть >= minRaise и <= стек
+        canRaise = stack >= minRaise;
+      } else {
+        // рейз: целевая ставка должна быть >= currentBet + minRaise
+        const maxAvailable = stack + myBet;
+        const minTarget = currentBet + minRaise;
+        canRaise = maxAvailable > minTarget;
+      }
+    }
+
+    const disabled = prevDisabled || !canRaise;
+    betRaiseButton.disabled = disabled;
+    betRaiseButton.classList.toggle('is-disabled', disabled);
+  }
 }
 
 function getDefaultBetAmount() {
