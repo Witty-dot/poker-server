@@ -172,62 +172,88 @@
     МАЛЕНЬКАЯ КНОПКА "ПОКИНУТЬ СТОЛ" (ICON)
     =========================================== */
 
-    /* по умолчанию скрыта */
-    #btnExit {
-      opacity: 0;
-      pointer-events: none;
-      transform: scale(0.85);
-      transition: 0.18s ease-out;
-    }
-    
-    /* показываем только когда есть класс-метка */
-    #btnExit.btn-icon-exit--visible {
-      opacity: 1;
-      pointer-events: auto;
-      transform: scale(1);
-    }
-    
-    /* сама иконка стола */
-    .exit-table-icon {
-      display: inline-block;
-      position: relative;
-      width: 22px;
-      height: 14px;
-      border-radius: 8px;
-      /* цвет берём из currentColor, чтобы подстраивался под тему */
-      border: 2px solid currentColor;
-      border-bottom-color: transparent; /* разрыв контура снизу под стрелку */
-      box-sizing: border-box;
-      margin-top: 1px;
-    }
+    /* КНОПКА "ПОКИНУТЬ СТОЛ" */
+#btnExit {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.85);
+  transition: 0.18s ease-out;
+  color: rgba(255,70,110,0.95);
+}
 
-    /* небольшое затемнение фона внутри "стола" (опционально, очень деликатно) */
-    .exit-table-icon::before {
-      content: "";
-      position: absolute;
-      inset: 2px 3px 4px;
-      border-radius: 6px;
-      background: radial-gradient(ellipse at center,
-      rgba(255,255,255,0.12),
-      rgba(0,0,0,0.0)
-      );
-      pointer-events: none;
-    }
+/* показываем только когда активна */
+#btnExit.btn-icon-exit--visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+}
 
-    /* стрелка вверх из центра стола */
-    .exit-table-icon::after {
-      content: "";
-      position: absolute;
-      left: 50%;
-      top: -6px;
-      transform: translateX(-50%);
-      width: 0;
-      height: 0;
-      border-left: 5px solid transparent;
-      border-right: 5px solid transparent;
-      /* тот же цвет, что и у контура стола */
-      border-bottom: 7px solid currentColor;
-    }
+/* неоновый красный круг вокруг иконки */
+#btnExit.btn-icon-exit--visible .exit-table-icon-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+
+  border: 2px solid rgba(255,70,110,0.9);
+  box-shadow:
+    0 0 6px rgba(255,70,110,0.9),
+    0 0 14px rgba(255,70,110,0.7),
+    inset 0 0 6px rgba(255,70,110,0.4);
+
+  background: rgba(30,0,10,0.3);
+
+  transition: 0.25s ease-out;
+}
+
+/* СТОЛ ВНУТРИ КРУГА */
+.exit-table-icon {
+  display: inline-block;
+  position: relative;
+  width: 22px;
+  height: 14px;
+  border-radius: 7px;
+
+  border: 2px solid rgba(255,70,110,0.95);
+  border-bottom-color: transparent;
+
+  box-shadow:
+    0 0 6px rgba(255,70,110,0.8),
+    0 0 12px rgba(255,70,110,0.55);
+
+  margin-top: 1px;
+}
+
+/* внутренний мягкий подсвет стола */
+.exit-table-icon::before {
+  content: "";
+  position: absolute;
+  inset: 2px 3px 4px;
+  border-radius: 5px;
+  background: radial-gradient(circle,
+    rgba(255,70,110,0.25),
+    rgba(0,0,0,0)
+  );
+}
+
+/* стрелка вверх */
+.exit-table-icon::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -7px;
+  transform: translateX(-50%);
+  width: 0; height: 0;
+
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 9px solid rgba(255,70,110,0.95);
+
+  filter: drop-shadow(0 0 5px rgba(255,70,110,0.9));
+}
     
     .btn-join {
       border:1px solid rgba(53,212,155,0.65);
