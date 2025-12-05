@@ -179,67 +179,43 @@
   color: var(--text-muted);
 }
 
-/* ===========================
-   НЕОНОВАЯ КНОПКА EXIT (идеальный вариант)
-   =========================== */
+/* ===========================================
+   Кнопка "Выход": неоновый круг + стрелка от центра
+=========================================== */
 
 #btnExit {
   position: relative;
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   padding: 0;
-
-  border: 2px solid rgba(255, 60, 100, 0.9);
-  background: radial-gradient(circle, rgba(255,60,100,0.20), rgba(0,0,0,0.1));
+  border: 1px solid rgba(255,65,111,0.55);
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255,255,255,0.18), transparent 45%),
+    radial-gradient(circle at center, rgba(255,65,111,0.35), #1a0209);
   box-shadow:
-    0 0 12px rgba(255,60,100,0.9),
-    0 0 24px rgba(255,60,100,0.6);
+    0 0 10px rgba(255,65,111,0.9),
+    0 0 22px rgba(255,65,111,0.75);
+  color:#ffe1ec;
 
-  opacity: 0;
-  pointer-events: none;
-  transform: scale(0.85);
-  transition: 0.18s ease-out;
-  color: #ff92a8;
+  opacity:0;
+  pointer-events:none;
+  transform:scale(0.85);
+  transition:
+    opacity 0.18s ease-out,
+    transform 0.18s ease-out,
+    box-shadow 0.18s ease-out,
+    filter 0.18s ease-out;
 }
 
 #btnExit.btn-icon-exit--visible {
-  opacity: 1;
-  pointer-events: auto;
-  transform: scale(1);
+  opacity:1;
+  pointer-events:auto;
+  transform:scale(1);
 }
 
-/* ВНУТРЕННИЙ КРУГ — точно такой же, как внешний, только меньше */
-#btnExit::before {
-  content: "";
-  position: absolute;
-  inset: 8px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 60, 100, 0.9);
-  border-right-color: transparent; /* разрыв под стрелку */
-  box-shadow: 0 0 10px rgba(255,60,100,0.8);
-  transform: rotate(-35deg);
-}
-
-/* СТРЕЛКА: два неоновых усика под 45° */
-#btnExit::after {
-  content: "";
-  position: absolute;
-  width: 10px;
-  height: 10px;
-
-  border-top: 2px solid rgba(255,60,100,0.9);
-  border-left: 2px solid rgba(255,60,100,0.9);
-
-  border-radius: 2px;
-
-  top: 9px;
-  right: 9px;
-
-  transform: rotate(-45deg);
-  box-shadow:
-    0 0 6px rgba(255,60,100,0.9),
-    0 0 14px rgba(255,60,100,0.7);
+#btnExit:hover {
+  filter:brightness(1.08);
 }
 
     .btn-play {
@@ -273,6 +249,72 @@
       filter:brightness(1.2);
     }
 
+    /* Внутренняя геометрия иконки выхода */
+
+#btnExit .exit-glyph {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  margin: auto;
+}
+
+/* внутренний круг */
+#btnExit .exit-glyph::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: 50%;
+  border: 1.6px solid currentColor;
+  box-shadow: 0 0 6px rgba(255,65,111,0.7);
+}
+
+/* маленький "разрыв" в круге слева-сверху */
+#btnExit .exit-glyph::after {
+  content: "";
+  position: absolute;
+  left: 1px;
+  top: 1px;
+  width: 8px;
+  height: 4px;
+  background: #1a0209;              /* фон стола / хедера */
+  border-radius: 8px;
+  transform: rotate(-40deg);
+}
+
+    /* Стрелка от центра наружу (короткая, не доходит до внешнего круга) */
+    #btnExit .exit-arrow {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 8px;              /* длина стержня */
+      height: 2px;
+      background: currentColor;
+      box-shadow: 0 0 4px rgba(255,65,111,0.9);
+      transform-origin: 10% 50%;        /* начало почти в центре */
+      transform: translate(-50%, -50%) rotate(-45deg);
+    }
+
+    /* два "усика" на конце стрелки вместо залитого треугольника */
+    #btnExit .exit-arrow::before,
+    #btnExit .exit-arrow::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      width: 5px;
+      height: 1.7px;
+      background: currentColor;
+      box-shadow: 0 0 4px rgba(255,65,111,0.9);
+      transform-origin: 100% 50%;
+    }
+
+    #btnExit .exit-arrow::before {
+      transform: rotate(40deg);
+    }
+
+    #btnExit .exit-arrow::after {
+      transform: rotate(-40deg);
+    }
+    
     .btn-join {
       padding:6px 18px;
       font-size:13px;
