@@ -969,4 +969,5 @@ function wireChat() {
   wireSeatButton();
   wireExitButton();
   wireChat();
+  wireLogoToLobby();
 })();
