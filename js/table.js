@@ -777,7 +777,8 @@ function wireActionButtons() {
   }
 
   // Анимация нажатия кнопок
-  const pressable = document.querySelectorAll('.action-btn, .btn-join, .btn-leave');
+  const pressable = document.querySelectorAll(
+  '.action-btn, .btn-join, .btn-leave, .btn-icon-exit');
   pressable.forEach(btn => {
     const press = () => btn.classList.add('is-pressed');
     const release = () => btn.classList.remove('is-pressed');
