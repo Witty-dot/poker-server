@@ -155,106 +155,100 @@
       -webkit-tap-highlight-color: transparent;
     }
 
+    /* первая версия btn-play, оставляю как было */
     .btn-play {
       border-radius: 999px;
       padding: 6px 16px;
       font-size: 13px;
       border: 1px solid rgba(120, 133, 255, 0.9);
       background: radial-gradient(circle at 0 0,
-      rgba(120, 133, 255, 0.45),
-      rgba(10, 10, 24, 0.96)
+        rgba(120, 133, 255, 0.45),
+        rgba(10, 10, 24, 0.96)
       );
       color: #f5f5ff;
       box-shadow: 0 0 18px rgba(120, 133, 255, 0.95);
     }
-    
+
     /* ===========================================
-    МАЛЕНЬКАЯ КНОПКА "ПОКИНУТЬ СТОЛ" (ICON)
-    =========================================== */
+       МАЛЕНЬКАЯ КНОПКА "ПОКИНУТЬ СТОЛ"
+       =========================================== */
 
-    /* КНОПКА "ПОКИНУТЬ СТОЛ" */
-#btnExit {
-  opacity: 0;
-  pointer-events: none;
-  transform: scale(0.85);
-  transition: 0.18s ease-out;
-  color: rgba(255,70,110,0.95);
-}
+    /* сама кнопка: по умолчанию скрыта */
+    #btnExit {
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.85);
+      transition: 0.18s ease-out;
+      color: rgba(255,70,110,0.95);
+    }
 
-/* показываем только когда активна */
-#btnExit.btn-icon-exit--visible {
-  opacity: 1;
-  pointer-events: auto;
-  transform: scale(1);
-}
+    /* показываем, когда сработала логика и навесился класс */
+    #btnExit.btn-icon-exit--visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: scale(1);
+    }
 
-/* неоновый красный круг вокруг иконки */
-#btnExit.btn-icon-exit--visible .exit-table-icon-wrapper {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+    /* НЕОНОВЫЙ КРАСНЫЙ КРУГ ВОКРУГ ИКОНКИ */
+    .exit-table-icon-wrapper {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,70,110,0.9);
+      box-shadow:
+        0 0 6px rgba(255,70,110,0.9),
+        0 0 14px rgba(255,70,110,0.7),
+        inset 0 0 6px rgba(255,70,110,0.4);
+      background: rgba(30,0,10,0.3);
+      transition: 0.25s ease-out;
+    }
 
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
+    /* СТОЛ ВНУТРИ КРУГА */
+    .exit-table-icon {
+      display: inline-block;
+      position: relative;
+      width: 22px;
+      height: 14px;
+      border-radius: 7px;
+      border: 2px solid rgba(255,70,110,0.95);
+      border-bottom-color: transparent; /* разрыв снизу */
+      box-shadow:
+        0 0 6px rgba(255,70,110,0.8),
+        0 0 12px rgba(255,70,110,0.55);
+      margin-top: 1px;
+      box-sizing: border-box;
+    }
 
-  border: 2px solid rgba(255,70,110,0.9);
-  box-shadow:
-    0 0 6px rgba(255,70,110,0.9),
-    0 0 14px rgba(255,70,110,0.7),
-    inset 0 0 6px rgba(255,70,110,0.4);
+    /* мягкий подсвет внутри "стола" */
+    .exit-table-icon::before {
+      content: "";
+      position: absolute;
+      inset: 2px 3px 4px;
+      border-radius: 5px;
+      background: radial-gradient(circle,
+        rgba(255,70,110,0.25),
+        rgba(0,0,0,0)
+      );
+    }
 
-  background: rgba(30,0,10,0.3);
+    /* стрелка вверх из середины стола */
+    .exit-table-icon::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: -7px;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-bottom: 9px solid rgba(255,70,110,0.95);
+      filter: drop-shadow(0 0 5px rgba(255,70,110,0.9));
+    }
 
-  transition: 0.25s ease-out;
-}
-
-/* СТОЛ ВНУТРИ КРУГА */
-.exit-table-icon {
-  display: inline-block;
-  position: relative;
-  width: 22px;
-  height: 14px;
-  border-radius: 7px;
-
-  border: 2px solid rgba(255,70,110,0.95);
-  border-bottom-color: transparent;
-
-  box-shadow:
-    0 0 6px rgba(255,70,110,0.8),
-    0 0 12px rgba(255,70,110,0.55);
-
-  margin-top: 1px;
-}
-
-/* внутренний мягкий подсвет стола */
-.exit-table-icon::before {
-  content: "";
-  position: absolute;
-  inset: 2px 3px 4px;
-  border-radius: 5px;
-  background: radial-gradient(circle,
-    rgba(255,70,110,0.25),
-    rgba(0,0,0,0)
-  );
-}
-
-/* стрелка вверх */
-.exit-table-icon::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: -7px;
-  transform: translateX(-50%);
-  width: 0; height: 0;
-
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-bottom: 9px solid rgba(255,70,110,0.95);
-
-  filter: drop-shadow(0 0 5px rgba(255,70,110,0.9));
-}
-    
     .btn-join {
       border:1px solid rgba(53,212,155,0.65);
       background:radial-gradient(circle at 0 0,rgba(53,212,155,0.35),#073321);
@@ -290,6 +284,7 @@
         inset 0 0 18px rgba(255,65,111,0.95);
     }
 
+    /* финальная версия btn-play, как у тебя ниже */
     .btn-play {
       border:1px solid rgba(111,122,255,0.85);
       background:radial-gradient(circle at 0 0,rgba(111,122,255,0.28),#1a2250);
@@ -300,10 +295,10 @@
     .btn-play.is-pressed,
     .btn-play:active {
       box-shadow:
-      0 0 24px rgba(111,122,255,1),
-      inset 0 0 20px rgba(111,122,255,0.95);
+        0 0 24px rgba(111,122,255,1),
+        inset 0 0 20px rgba(111,122,255,0.95);
     }
-    
+
     /* ---------- MAIN LAYOUT ---------- */
 
     .main {
@@ -426,7 +421,8 @@
     }
 
     .hero-avatar {
-      width:40px; height:40px;
+      width:40px;
+      height:40px;
       border-radius:50%;
       background:radial-gradient(circle,rgba(111,122,255,0.25),#050509);
       border:1px solid rgba(255,255,255,0.15);
@@ -511,7 +507,8 @@
 
     input[type="range"].range::-webkit-slider-thumb {
       -webkit-appearance:none;
-      width:14px; height:14px;
+      width:14px;
+      height:14px;
       border-radius:50%;
       background:#fff;
       border:2px solid var(--accent-strong);
@@ -821,8 +818,8 @@
       <div class="topbar-right">
         <div class="topbar-actions">
           <button class="btn btn-icon btn-icon-exit" id="btnExit" aria-label="Покинуть стол">
-            <span class="exit-table-icon-wrapper">. 
-            <span class="exit-table-icon"></span>
+            <span class="exit-table-icon-wrapper">
+              <span class="exit-table-icon"></span>
             </span>
           </button>
           <button class="btn btn-icon" id="btnSettings" aria-label="Настройки">⚙</button>
