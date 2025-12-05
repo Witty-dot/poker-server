@@ -186,16 +186,88 @@
       box-shadow:0 0 18px rgba(120,133,255,0.95);
     }
 
+    /* ---------- КНОПКА НАСТРОЕК (шестерёнка) ---------- */
+    #btnSettings {
+      border:1px solid rgba(255,255,255,0.18);
+      background:radial-gradient(circle at 30% 30%,
+        rgba(255,255,255,0.18),
+        rgba(10,10,24,0.96)
+      );
+      color:#f5f5ff;
+      box-shadow:
+        0 0 10px rgba(0,0,0,0.9),
+        0 0 14px rgba(40,40,70,0.8);
+      font-size:16px;
+    }
+
+    #btnSettings:hover {
+      filter:brightness(1.2);
+    }
+
+    /* ===========================================
+       КРУГЛАЯ КНОПКА "ПОКИНУТЬ СТОЛ"
+       (первый удачный вариант + появление по классу)
+    =========================================== */
+
+    /* ВНЕШНИЙ ВИД (как в самом первом варианте) */
     .btn-icon-exit {
       border-color:rgba(255,65,111,0.5);
       color:#ffd9e4;
       background:radial-gradient(circle at 0 0,rgba(255,65,111,0.18),transparent);
       font-size:14px;
+      box-shadow:
+        0 0 8px rgba(255,65,111,0.8),
+        0 0 18px rgba(255,65,111,0.7);
+      position:relative;
     }
+
     .btn-icon-exit:hover {
       filter:brightness(1.1);
     }
-    
+
+    /* ЛОГИКА ПОКАЗА/СКРЫТИЯ */
+    #btnExit {
+      opacity:0;
+      pointer-events:none;
+      transform:scale(0.85);
+      transition:
+        opacity 0.18s ease-out,
+        transform 0.18s ease-out;
+    }
+
+    #btnExit.btn-icon-exit--visible {
+      opacity:1;
+      pointer-events:auto;
+      transform:scale(1);
+    }
+
+    /* стол-овал внутри круга */
+    #btnExit::before {
+      content:"";
+      position:absolute;
+      left:50%;
+      top:54%;
+      transform:translate(-50%,-50%);
+      width:18px;
+      height:9px;
+      border-radius:7px 7px 5px 5px;
+      background:currentColor;
+    }
+
+    /* стрелка вверх */
+    #btnExit::after {
+      content:"";
+      position:absolute;
+      left:50%;
+      top:32%;
+      transform:translateX(-50%);
+      width:0;
+      height:0;
+      border-left:7px solid transparent;
+      border-right:7px solid transparent;
+      border-bottom:9px solid currentColor;
+    }
+
     .btn-join {
       padding:6px 18px;
       font-size:13px;
@@ -244,10 +316,6 @@
         inset 0 0 20px rgba(111,122,255,0.95);
     }
 
-    #logoArea {
-      cursor:pointer;
-    }
-    
     /* ---------- MAIN LAYOUT ---------- */
 
     .main {
@@ -768,7 +836,7 @@
       <div class="topbar-right">
         <div class="topbar-actions">
           <!-- маленькая круглая кнопка выхода -->
-          <button class="btn btn-icon" id="btnExit" aria-label="Покинуть стол"></button>
+          <button class="btn btn-icon btn-icon-exit" id="btnExit" aria-label="Покинуть стол"></button>
 
           <button class="btn btn-icon" id="btnSettings" aria-label="Настройки">⚙</button>
           <button class="btn btn-join" id="btnLeave">Сесть за стол</button>
@@ -819,42 +887,42 @@
             <div class="seat seat-1" data-seat="1">
               <div class="seat-avatar">P1</div>
               <div class="seat-text">
-                <span class="seat-name">Свободно</span>
+                <span class="seat-name">Пусто</span>
                 <span class="seat-stack"></span>
               </div>
             </div>
             <div class="seat seat-2" data-seat="2">
               <div class="seat-avatar">P2</div>
               <div class="seat-text">
-                <span class="seat-name">Свободно</span>
+                <span class="seat-name">Пусто</span>
                 <span class="seat-stack"></span>
               </div>
             </div>
             <div class="seat seat-3" data-seat="3">
               <div class="seat-avatar">P3</div>
               <div class="seat-text">
-                <span class="seat-name">Свободно</span>
+                <span class="seat-name">Пусто</span>
                 <span class="seat-stack"></span>
               </div>
             </div>
             <div class="seat seat-4" data-seat="4">
               <div class="seat-avatar">P4</div>
               <div class="seat-text">
-                <span class="seat-name">Свободно</span>
+                <span class="seat-name">Пусто</span>
                 <span class="seat-stack"></span>
               </div>
             </div>
             <div class="seat seat-5" data-seat="5">
               <div class="seat-avatar">P5</div>
               <div class="seat-text">
-                <span class="seat-name">Свободно</span>
+                <span class="seat-name">Пусто</span>
                 <span class="seat-stack"></span>
               </div>
             </div>
             <div class="seat seat-6" data-seat="6">
               <div class="seat-avatar">P6</div>
               <div class="seat-text">
-                <span class="seat-name">Свободно</span>
+                <span class="seat-name">Пусто</span>
                 <span class="seat-stack"></span>
               </div>
             </div>
