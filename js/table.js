@@ -984,4 +984,11 @@ function wireChat() {
   wireExitButton();
   wireChat();
   wireLogoToLobby();
+  // клик по логотипу в хедере -> в лобби
+  if (logoArea) {
+    logoArea.style.cursor = 'pointer';
+    logoArea.addEventListener('click', () => {
+      window.location.href = 'lobby.html';
+    });
+  }
 })();
