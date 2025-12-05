@@ -799,30 +799,54 @@ function wireSeatButton() {
   if (!seatButton) return;
 
   seatButton.addEventListener('click', () => {
-    // для посадки/ухода оставляем UI-клик
     sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
 
+    // Нет стейта — пробуем просто сесть
     if (!lastState) {
       socket.emit('joinTable', {
         playerName: 'Hero',
         tableId: tableIdFromUrl,
         limitId: limitIdFromUrl
       });
+      socket.emit('setPlaying', { playing: true });
       return;
     }
 
-    const seated = isMeSeated(lastState);
+    const players = lastState.players || [];
+    const me = players.find(p => p.id === myPlayerId) || null;
+    const uiState = getSeatUiState(lastState);
 
-    if (!seated) {
+    if (uiState === 'notSeated') {
+      // Сесть за стол
       socket.emit('joinTable', {
         playerName: 'Hero',
         tableId: tableIdFromUrl,
         limitId: limitIdFromUrl
       });
       socket.emit('setPlaying', { playing: true });
-    } else {
+    } else if (uiState === 'playing') {
+      // Поставить себя на паузу (остаться в списке игроков)
       socket.emit('setPlaying', { playing: false });
+    } else if (uiState === 'paused') {
+      // Вернуться в игру
+      socket.emit('setPlaying', { playing: true });
     }
+  });
+}
+
+function wireExitButton() {
+  if (!exitButton) return;
+
+  exitButton.addEventListener('click', () => {
+    sound.play(SOUND_EVENTS.UI_CLICK_PRIMARY);
+
+    if (!lastState || !lastState.players) return;
+    const me = lastState.players.find(p => p.id === myPlayerId);
+    if (!me) return;
+
+    // Полный выход со стола.
+    // На сервере нужно реализовать обработчик события 'leaveTable'.
+    socket.emit('leaveTable');
   });
 }
 
@@ -860,5 +884,6 @@ function wireChat() {
 (function init() {
   wireActionButtons();
   wireSeatButton();
+  wireExitButton();
   wireChat();
 })();
