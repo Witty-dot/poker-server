@@ -179,28 +179,29 @@
   color: var(--text-muted);
 }
 
-/* ===========================================
-   Кнопка "Выход": неоновый круг + стрелка от центра
+
+     /* ===========================================
+   КНОПКА "ВЫХОД" — НЕОНОВЫЙ EXIT SIGN
 =========================================== */
 
 #btnExit {
-  position: relative;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  padding: 0;
-  border: 1px solid rgba(255,65,111,0.55);
+  /* размеры берём из .btn-icon: не трогаем */
+  border-radius:50%;
+  padding:0;
+  border:1px solid rgba(255, 90, 140, 0.75);
   background:
-    radial-gradient(circle at 30% 20%, rgba(255,255,255,0.18), transparent 45%),
-    radial-gradient(circle at center, rgba(255,65,111,0.35), #1a0209);
+    radial-gradient(circle at 50% 25%,
+      rgba(255, 90, 140, 0.55),
+      rgba(5, 5, 12, 0.98) 60%,
+      rgba(5, 5, 12, 1) 100%);
   box-shadow:
-    0 0 10px rgba(255,65,111,0.9),
-    0 0 22px rgba(255,65,111,0.75);
-  color:#ffe1ec;
+    0 0 10px rgba(255, 90, 140, 0.9),
+    0 0 26px rgba(255, 90, 140, 0.85);
+  position:relative;
 
   opacity:0;
   pointer-events:none;
-  transform:scale(0.85);
+  transform:scale(0.9);
   transition:
     opacity 0.18s ease-out,
     transform 0.18s ease-out,
@@ -208,6 +209,7 @@
     filter 0.18s ease-out;
 }
 
+/* включаем кнопку, когда игрок на паузе */
 #btnExit.btn-icon-exit--visible {
   opacity:1;
   pointer-events:auto;
@@ -215,9 +217,37 @@
 }
 
 #btnExit:hover {
-  filter:brightness(1.08);
+  filter:brightness(1.1);
 }
 
+/* контейнер иконки внутри */
+.exit-icon {
+  width:18px;
+  height:18px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+/* SVG-иконка: две дуги одного круга + подпись EXIT */
+.exit-icon svg {
+  width:100%;
+  height:100%;
+  fill:none;
+  stroke:#ffe5f1;
+  stroke-linecap:round;
+  stroke-width:2.2px;
+  /* мягкий неоновый ореол */
+  filter:
+    drop-shadow(0 0 2px rgba(255, 140, 175, 0.9))
+    drop-shadow(0 0 6px rgba(255, 80, 130, 0.8));
+}
+
+/* текст EXIT внутри круга */
+.exit-icon text {
+  fill:#ffe5f1;
+  font-weight:500;
+}
     .btn-play {
       border-radius:999px;
       padding:6px 16px;
