@@ -1183,29 +1183,56 @@ function createTableEngine(io, config) {
   // ================= Обход по кругу =================
 
   function advanceTurn() {
-    const len = table.players.length;
-    if (len === 0) {
-      table.currentTurnIndex = null;
-      clearTurnTimer();
-      return;
-    }
-    if (table.currentTurnIndex === null) {
-      table.currentTurnIndex = 0;
-    }
-
-    for (let i = 1; i <= len; i++) {
-      const idx = (table.currentTurnIndex + i) % len;
-      const p = table.players[idx];
-      // Пауза не исключает из текущей раздачи — ход всё равно "приходит" к нему
-      if (p.inHand && !p.hasFolded && p.stack > 0) {
-        table.currentTurnIndex = idx;
-        return;
-      }
-    }
-
+  const len = table.players.length;
+  if (len === 0) {
     table.currentTurnIndex = null;
     clearTurnTimer();
+    return;
   }
+  if (table.currentTurnIndex === null) {
+    table.currentTurnIndex = 0;
+  }
+
+  for (let i = 1; i <= len; i++) {
+    const idx = (table.currentTurnIndex + i) % len;
+    const p = table.players[idx];
+    if (!p) continue;
+
+    // Если игрок помечен на выход и всё ещё в раздаче — автофолд в момент,
+    // когда до него "доходит" ход.
+    if (p.pendingLeave && p.inHand && !p.hasFolded) {
+      p.hasFolded = true;
+      p.inHand = false;
+      p.hasActedThisStreet = true;
+      table.lastLogMessage = `Игрок ${p.name} покинул стол, авто-фолд`;
+      playSound('FOLD');
+
+      const actives = activePlayers();
+      const roundComplete = isBettingRoundComplete();
+
+      if (roundComplete || actives.length <= 1) {
+        // Раздача или раунд могут завершиться -> дальше autoAdvanceIfReady()
+        broadcastGameState();
+        scheduleRoundEndIfComplete();
+        // Пытаемся найти следующего кандидата в этом же цикле
+        continue;
+      }
+
+      // Ищем дальше следующего живого игрока
+      continue;
+    }
+
+    // Пауза не исключает из текущей раздачи — он всё равно
+    // может получать авто-действия (чек/фолд по таймауту)
+    if (p.inHand && !p.hasFolded && p.stack > 0) {
+      table.currentTurnIndex = idx;
+      return;
+    }
+  }
+
+  table.currentTurnIndex = null;
+  clearTurnTimer();
+}
 
   // ================= Обработка действий игрока =================
 
@@ -1489,7 +1516,8 @@ function createTableEngine(io, config) {
         message: null,
         isPaused: false,
         hasClickedThisHand: false,
-        totalBet: 0
+        totalBet: 0,
+        pendingLeave: false
       };
 
       table.players.push(player);
@@ -1520,11 +1548,52 @@ function createTableEngine(io, config) {
       }
     },
 
+    leaveTable(socketId) {
+  const player = table.players.find(p => p.id === socketId);
+  if (!player) return;
+
+  // Если сейчас нет активной раздачи или игрок не в хенд-е —
+  // можно убрать его сразу.
+  const inActiveHand =
+    table.stage !== 'waiting' &&
+    player.inHand &&
+    !player.hasFolded;
+
+  if (!inActiveHand) {
+    // Мгновенный выход, кресло сразу свободно
+    this.removePlayer(socketId);
+    return;
+  }
+
+  // Игрок участвует в текущей раздаче:
+  // помечаем на выход, переведём на паузу и
+  // автофолд сделается при получении хода.
+  player.pendingLeave = true;
+  player.isPaused = true;
+
+  // Если ход УЖЕ у него сейчас — эквивалент обычного фолда,
+  // плюс флаг pendingLeave для удаления после раздачи.
+  if (
+    table.currentTurnIndex != null &&
+    table.players[table.currentTurnIndex] &&
+    table.players[table.currentTurnIndex].id === socketId
+  ) {
+    handlePlayerAction(socketId, { type: 'fold', isAuto: true });
+  }
+
+  pushSnapshot('leaveTable_pending', table);
+  broadcastGameState();
+},
+    
     setPlaying(socketId, playing) {
       const player = table.players.find(p => p.id === socketId);
       if (!player) return;
 
       player.isPaused = !playing;
+
+      if (playing) {
+        player.pendingLeave = false;} // ← Игрок возвращается, отменяем "уйти"
+  
       console.log(logPrefix(), `Player ${player.name} setPlaying=${playing}`);
       pushSnapshot('setPlaying', table);
       broadcastGameState();
