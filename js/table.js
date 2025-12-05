@@ -95,6 +95,8 @@ const minBuyinEl       = document.getElementById('minBuyin');
 const maxBuyinEl       = document.getElementById('maxBuyin');
 
 const seatButton       = document.getElementById('btnLeave');
+const exitButton       = document.getElementById('btnExit');
+const logoArea         = document.getElementById('logoArea'); 
 
 const chatInputEl      = document.getElementById('chatInput');
 const chatSendEl       = document.getElementById('chatSend');
@@ -509,17 +511,45 @@ function isMeSeated(state) {
   return !me.isPaused && me.stack > 0;
 }
 
+function getSeatUiState(state) {
+  if (!myPlayerId || !state || !state.players) return 'notSeated';
+
+  const me = state.players.find(p => p.id === myPlayerId);
+  if (!me || me.stack <= 0) return 'notSeated';
+
+  if (me.isPaused) return 'paused';
+  return 'playing';
+}
+
 function updateSeatButton(state) {
   if (!seatButton) return;
-  const seated = isMeSeated(state);
-  if (seated) {
-    seatButton.textContent = 'Покинуть стол';
-    seatButton.classList.remove('btn-join');
-    seatButton.classList.add('btn-leave');
-  } else {
+
+  const uiState = getSeatUiState(state);
+
+  // Сброс оформляющих классов
+  seatButton.classList.remove('btn-join', 'btn-leave');
+  seatButton.disabled = false;
+
+  // По умолчанию иконку выхода прячем
+  if (exitButton) {
+    exitButton.classList.remove('btn-icon-exit--visible');
+  }
+
+  if (uiState === 'notSeated') {
+    // Ещё не сидим за столом
     seatButton.textContent = 'Сесть за стол';
-    seatButton.classList.remove('btn-leave');
     seatButton.classList.add('btn-join');
+  } else if (uiState === 'playing') {
+    // Активно играем
+    seatButton.textContent = 'Покинуть стол';
+    seatButton.classList.add('btn-leave');
+  } else if (uiState === 'paused') {
+    // На паузе: большая кнопка "Сесть за стол", маленькая иконка выхода видна
+    seatButton.textContent = 'Сесть за стол';
+    seatButton.classList.add('btn-join');
+    if (exitButton) {
+      exitButton.classList.add('btn-icon-exit--visible');
+    }
   }
 }
 
